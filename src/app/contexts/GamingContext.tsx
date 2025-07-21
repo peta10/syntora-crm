@@ -60,6 +60,15 @@ interface GamingState {
   soundEnabled: boolean;
   volume: number;
   animationsEnabled: boolean;
+
+  // Analytics
+  totalDaysActive: number;
+  bestStreak: number;
+  totalAchievementsUnlocked: number;
+  weeklyXpGoal: number;
+  monthlyXpGoal: number;
+  loading: boolean;
+  error: string | null;
 }
 
 interface GamingContextType extends GamingState {
@@ -73,6 +82,11 @@ interface GamingContextType extends GamingState {
   playSound: (type: string) => void;
   checkAchievements: (achievements: string[]) => void;
   updateSettings: (settings: Partial<{ soundEnabled: boolean; volume: number; animationsEnabled: boolean }>) => void;
+  
+  // Analytics actions
+  refreshStats: () => Promise<void>;
+  triggerReset: () => Promise<void>;
+  getAnalytics: (period: 'weekly' | 'monthly', lookback?: number) => Promise<any>;
 }
 
 const GamingContext = createContext<GamingContextType | undefined>(undefined);
@@ -109,6 +123,13 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
     soundEnabled: true,
     volume: 75,
     animationsEnabled: true,
+    totalDaysActive: 0,
+    bestStreak: 0,
+    totalAchievementsUnlocked: 0,
+    weeklyXpGoal: 500,
+    monthlyXpGoal: 2000,
+    loading: true,
+    error: null,
   });
 
   // Initialize sound engine
@@ -128,10 +149,10 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
   // Load gaming state from Supabase
   useEffect(() => {
     const loadGamingStats = async () => {
-      let stats = await GamingStatsAPI.getUserStats();
+      let stats = await GamingStatsAPI.getCurrentStats();
       
       if (!stats) {
-        stats = await GamingStatsAPI.initializeUserStats();
+        stats = await GamingStatsAPI.initializeStats();
       }
 
       if (stats) {
@@ -182,7 +203,7 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
   // Check and reset daily stats if needed
   useEffect(() => {
     const checkDailyReset = async () => {
-      await GamingStatsAPI.resetDailyStats();
+      await GamingStatsAPI.triggerDailyReset();
     };
 
     checkDailyReset();
@@ -384,6 +405,73 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
     setGamingState(prev => ({ ...prev, ...settings }));
   };
 
+  const refreshStats = async () => {
+    try {
+      setGamingState(prev => ({ ...prev, loading: true, error: null }));
+      
+      let stats = await GamingStatsAPI.getCurrentStats();
+      
+      if (!stats) {
+        stats = await GamingStatsAPI.initializeStats();
+      }
+      
+      if (stats) {
+        setGamingState(prev => ({
+          ...prev,
+          level: stats.level,
+          xp: stats.xp,
+          xpToNext: stats.xp_to_next,
+          todayPoints: stats.today_points,
+          streakCount: stats.streak_count,
+          combo: stats.combo,
+          allDayComplete: stats.all_day_complete,
+          achievements: stats.achievements,
+          soundEnabled: stats.sound_enabled,
+          volume: stats.volume,
+          animationsEnabled: stats.animations_enabled,
+          totalDaysActive: stats.total_days_active,
+          bestStreak: stats.best_streak,
+          totalAchievementsUnlocked: stats.total_achievements_unlocked,
+          weeklyXpGoal: stats.weekly_xp_goal,
+          monthlyXpGoal: stats.monthly_xp_goal,
+          loading: false,
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading gaming stats:', err);
+      setGamingState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load gaming stats'
+      }));
+    }
+  };
+
+  const triggerReset = async () => {
+    try {
+      const result = await GamingStatsAPI.triggerDailyReset();
+      console.log('Reset completed:', result);
+      await refreshStats();
+      return result;
+    } catch (err) {
+      console.error('Error triggering reset:', err);
+      setGamingState(prev => ({
+        ...prev,
+        error: 'Failed to trigger daily reset'
+      }));
+      throw err;
+    }
+  };
+
+  const getAnalytics = async (period: 'weekly' | 'monthly' = 'weekly', lookback: number = 12) => {
+    try {
+      return await GamingStatsAPI.getAnalytics(period, lookback);
+    } catch (err) {
+      console.error('Error getting analytics:', err);
+      return null;
+    }
+  };
+
   const contextValue: GamingContextType = {
     ...gamingState,
     addXP,
@@ -395,6 +483,9 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
     playSound,
     checkAchievements,
     updateSettings,
+    refreshStats,
+    triggerReset,
+    getAnalytics,
   };
 
   return (

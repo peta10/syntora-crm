@@ -14,7 +14,7 @@ export class DesktopManager {
   private window: Window | null = null;
 
   private constructor() {
-    this.init();
+    // Don't initialize in constructor to avoid SSR issues
   }
 
   static getInstance(): DesktopManager {
@@ -24,10 +24,14 @@ export class DesktopManager {
     return DesktopManager.instance;
   }
 
-  private async init() {
+  async init() {
+    // Only run initialization if we're in a browser environment
+    if (typeof window === 'undefined') return;
+
     try {
       // Check if we're running in Tauri
-      this.isDesktop = window.__TAURI__ !== undefined;
+      // @ts-ignore - __TAURI__ is injected by Tauri
+      this.isDesktop = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
       
       if (this.isDesktop) {
         this.window = new Window('main');
@@ -45,6 +49,8 @@ export class DesktopManager {
   }
 
   async showNotification(options: NotificationOptions): Promise<void> {
+    if (typeof window === 'undefined') return;
+
     if ('Notification' in window && this.permissionGranted) {
       new Notification(options.title, {
         body: options.body,

@@ -33,135 +33,178 @@ class ProjectsService {
   private supabase = createClientComponentClient();
 
   async getProjects(): Promise<Project[]> {
-    const { data, error } = await this.supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await this.supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching projects:', error);
+      if (error) {
+        console.error('Error fetching projects:', error);
+        throw new Error(`Failed to fetch projects: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
       throw error;
     }
-
-    return data || [];
   }
 
   async getProjectById(id: string): Promise<Project | null> {
-    const { data, error } = await this.supabase
-      .from('projects')
-      .select('*')
-      .eq('id', id)
-      .single();
+    try {
+      const { data, error } = await this.supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-    if (error) {
-      console.error('Error fetching project:', error);
+      if (error) {
+        console.error('Error fetching project:', error);
+        throw new Error(`Failed to fetch project: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch project:', error);
       throw error;
     }
-
-    return data;
   }
 
   async createProject(projectData: CreateProjectData): Promise<Project> {
-    const { data: { user } } = await this.supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('User must be authenticated to create projects');
-    }
+    try {
+      console.log('Creating project with data:', projectData);
 
-    const { data, error } = await this.supabase
-      .from('projects')
-      .insert({
+      // Generate a random UUID for owner_id since we don't have auth
+      const randomOwnerId = crypto.randomUUID();
+
+      const projectToInsert = {
         ...projectData,
-        owner_id: user.id,
+        owner_id: randomOwnerId,
         progress_percentage: 0,
         total_tasks: 0,
         completed_tasks: 0,
-      })
-      .select()
-      .single();
+        actual_hours: 0,
+      };
 
-    if (error) {
+      const { data, error } = await this.supabase
+        .from('projects')
+        .insert(projectToInsert)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error creating project:', error);
+        throw new Error(`Failed to create project: ${error.message}`);
+      }
+
+      console.log('Project created successfully:', data);
+      return data;
+    } catch (error) {
       console.error('Error creating project:', error);
       throw error;
     }
-
-    return data;
   }
 
   async updateProject(id: string, updates: UpdateProjectData): Promise<Project> {
-    const { data, error } = await this.supabase
-      .from('projects')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.supabase
+        .from('projects')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error updating project:', error);
+      if (error) {
+        console.error('Error updating project:', error);
+        throw new Error(`Failed to update project: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to update project:', error);
       throw error;
     }
-
-    return data;
   }
 
   async deleteProject(id: string): Promise<void> {
-    // First, remove project_id from all tasks
-    await this.supabase
-      .from('tasks')
-      .update({ project_id: null })
-      .eq('project_id', id);
+    try {
+      // First, remove project_id from all tasks
+      await this.supabase
+        .from('tasks')
+        .update({ project_id: null })
+        .eq('project_id', id);
 
-    const { error } = await this.supabase
-      .from('projects')
-      .delete()
-      .eq('id', id);
+      const { error } = await this.supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
 
-    if (error) {
-      console.error('Error deleting project:', error);
+      if (error) {
+        console.error('Error deleting project:', error);
+        throw new Error(`Failed to delete project: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
       throw error;
     }
   }
 
   async assignTaskToProject(taskId: string, projectId: string | null): Promise<void> {
-    const { error } = await this.supabase
-      .from('tasks')
-      .update({ project_id: projectId })
-      .eq('id', taskId);
+    try {
+      const { error } = await this.supabase
+        .from('tasks')
+        .update({ project_id: projectId })
+        .eq('id', taskId);
 
-    if (error) {
-      console.error('Error assigning task to project:', error);
+      if (error) {
+        console.error('Error assigning task to project:', error);
+        throw new Error(`Failed to assign task: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to assign task to project:', error);
       throw error;
     }
   }
 
   async getProjectTasks(projectId: string) {
-    const { data, error } = await this.supabase
-      .from('tasks')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await this.supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching project tasks:', error);
+      if (error) {
+        console.error('Error fetching project tasks:', error);
+        throw new Error(`Failed to fetch tasks: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Failed to fetch project tasks:', error);
       throw error;
     }
-
-    return data || [];
   }
 
   async updateProjectProgress(projectId: string): Promise<void> {
-    // This will be handled automatically by the database trigger
-    // But we can call it manually if needed
-    const tasks = await this.getProjectTasks(projectId);
-    const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(task => task.status === 'completed').length;
-    const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+    try {
+      // This will be handled automatically by the database trigger
+      // But we can call it manually if needed
+      const tasks = await this.getProjectTasks(projectId);
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(task => task.status === 'completed').length;
+      const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
-    await this.updateProject(projectId, {
-      total_tasks: totalTasks,
-      completed_tasks: completedTasks,
-      progress_percentage: progressPercentage,
-    });
+      await this.updateProject(projectId, {
+        total_tasks: totalTasks,
+        completed_tasks: completedTasks,
+        progress_percentage: progressPercentage,
+      });
+    } catch (error) {
+      console.error('Failed to update project progress:', error);
+      throw error;
+    }
   }
 
   // Real-time subscription for project changes
@@ -182,87 +225,54 @@ class ProjectsService {
 
   // Batch operations
   async createMultipleProjects(projects: CreateProjectData[]): Promise<Project[]> {
-    const { data: { user } } = await this.supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('User must be authenticated to create projects');
-    }
+    try {
+      const randomOwnerId = crypto.randomUUID();
 
-    const projectsWithOwner = projects.map(project => ({
-      ...project,
-      owner_id: user.id,
-      progress_percentage: 0,
-      total_tasks: 0,
-      completed_tasks: 0,
-    }));
+      const projectsWithOwner = projects.map(project => ({
+        ...project,
+        owner_id: randomOwnerId,
+        progress_percentage: 0,
+        total_tasks: 0,
+        completed_tasks: 0,
+        actual_hours: 0,
+      }));
 
-    const { data, error } = await this.supabase
-      .from('projects')
-      .insert(projectsWithOwner)
-      .select();
+      const { data, error } = await this.supabase
+        .from('projects')
+        .insert(projectsWithOwner)
+        .select();
 
-    if (error) {
-      console.error('Error creating multiple projects:', error);
+      if (error) {
+        console.error('Error creating multiple projects:', error);
+        throw new Error(`Failed to create projects: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to create multiple projects:', error);
       throw error;
     }
-
-    return data;
   }
 
   async duplicateProject(id: string, newTitle?: string): Promise<Project> {
-    const originalProject = await this.getProjectById(id);
-    
-    if (!originalProject) {
-      throw new Error('Project not found');
+    try {
+      const originalProject = await this.getProjectById(id);
+      if (!originalProject) {
+        throw new Error('Project not found');
+      }
+
+      const { id: _, created_at, updated_at, ...projectData } = originalProject;
+      
+      const duplicatedProject = await this.createProject({
+        ...projectData,
+        title: newTitle || `${originalProject.title} (Copy)`,
+      });
+
+      return duplicatedProject;
+    } catch (error) {
+      console.error('Failed to duplicate project:', error);
+      throw error;
     }
-
-    const duplicateData: CreateProjectData = {
-      title: newTitle || `${originalProject.title} (Copy)`,
-      description: originalProject.description || '',
-      color: originalProject.color || '#6E86FF',
-      icon: originalProject.icon || '📁',
-      status: 'active',
-      category: originalProject.category,
-      tags: originalProject.tags,
-      estimated_hours: originalProject.estimated_hours,
-      is_public: false,
-    };
-
-    return this.createProject(duplicateData);
-  }
-
-  async getProjectStatistics(projectId: string) {
-    const tasks = await this.getProjectTasks(projectId);
-    const project = await this.getProjectById(projectId);
-
-    if (!project) {
-      throw new Error('Project not found');
-    }
-
-    const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(task => task.status === 'completed').length;
-    const pendingTasks = tasks.filter(task => task.status === 'todo').length;
-    const inProgressTasks = tasks.filter(task => task.status === 'in_progress').length;
-
-    const totalEstimatedTime = tasks.reduce((sum, task) => {
-      return sum + (task.estimated_duration || 0);
-    }, 0);
-
-    const totalActualTime = tasks.reduce((sum, task) => {
-      return sum + (task.actual_duration || 0);
-    }, 0);
-
-    return {
-      project,
-      totalTasks,
-      completedTasks,
-      pendingTasks,
-      inProgressTasks,
-      progressPercentage: totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100),
-      totalEstimatedTime,
-      totalActualTime,
-      efficiency: totalEstimatedTime === 0 ? 0 : Math.round((totalEstimatedTime / totalActualTime) * 100),
-    };
   }
 }
 

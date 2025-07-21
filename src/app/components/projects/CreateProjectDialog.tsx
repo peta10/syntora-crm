@@ -14,9 +14,32 @@ const PRESET_COLORS = [
   '#8B5CF6', '#06B6D4', '#10B981', '#F97316', '#EC4899', '#6366F1'
 ];
 
+// Fixed: Use unique IDs instead of emoji values for keys
 const PRESET_ICONS = [
-  '🚀', '📁', '💼', '🎯', '⚡', '🔥', '💡', '🌟', '🎨', '🔧', '📊', '🏆',
-  '📝', '💻', '🌐', '📱', '⭐', '🎪', '🎭', '🎨', '🎯', '🎮', '🎸', '🎵'
+  { id: 'rocket', emoji: '🚀' },
+  { id: 'folder', emoji: '📁' },
+  { id: 'briefcase', emoji: '💼' },
+  { id: 'target', emoji: '🎯' },
+  { id: 'bolt', emoji: '⚡' },
+  { id: 'fire', emoji: '🔥' },
+  { id: 'bulb', emoji: '💡' },
+  { id: 'star', emoji: '🌟' },
+  { id: 'palette', emoji: '🎨' },
+  { id: 'wrench', emoji: '🔧' },
+  { id: 'chart', emoji: '📊' },
+  { id: 'trophy', emoji: '🏆' },
+  { id: 'note', emoji: '📝' },
+  { id: 'laptop', emoji: '💻' },
+  { id: 'globe', emoji: '🌐' },
+  { id: 'phone', emoji: '📱' },
+  { id: 'star2', emoji: '⭐' },
+  { id: 'circus', emoji: '🎪' },
+  { id: 'masks', emoji: '🎭' },
+  { id: 'art', emoji: '🖼️' },
+  { id: 'game', emoji: '🎮' },
+  { id: 'guitar', emoji: '🎸' },
+  { id: 'music', emoji: '🎵' },
+  { id: 'camera', emoji: '📷' }
 ];
 
 export default function CreateProjectDialog({ open, onOpenChange, onCreateProject }: CreateProjectDialogProps) {
@@ -28,12 +51,18 @@ export default function CreateProjectDialog({ open, onOpenChange, onCreateProjec
   const [tags, setTags] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      setError('Project title is required');
+      return;
+    }
 
     setIsSubmitting(true);
+    setError(null);
+
     try {
       const projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'> = {
         title: title.trim(),
@@ -47,11 +76,14 @@ export default function CreateProjectDialog({ open, onOpenChange, onCreateProjec
         category: category.trim() || undefined,
         tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
         estimated_hours: estimatedHours ? parseFloat(estimatedHours) : undefined,
+        owner_id: '', // This will be set by the service
+        is_public: false,
+        actual_hours: 0
       };
 
       await onCreateProject(projectData);
       
-      // Reset form
+      // Reset form on success
       setTitle('');
       setDescription('');
       setColor('#6E86FF');
@@ -59,9 +91,11 @@ export default function CreateProjectDialog({ open, onOpenChange, onCreateProjec
       setCategory('');
       setTags('');
       setEstimatedHours('');
+      setError(null);
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating project:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create project');
     } finally {
       setIsSubmitting(false);
     }
@@ -85,6 +119,12 @@ export default function CreateProjectDialog({ open, onOpenChange, onCreateProjec
             </Button>
           </div>
 
+          {error && (
+            <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Project Icon and Color */}
             <div className="flex items-center space-x-6">
@@ -106,14 +146,14 @@ export default function CreateProjectDialog({ open, onOpenChange, onCreateProjec
                   <div className="grid grid-cols-6 gap-1 max-w-xs">
                     {PRESET_ICONS.map((presetIcon) => (
                       <button
-                        key={presetIcon}
+                        key={presetIcon.id} // Fixed: Use unique ID instead of emoji
                         type="button"
-                        onClick={() => setIcon(presetIcon)}
+                        onClick={() => setIcon(presetIcon.emoji)}
                         className={`w-8 h-8 rounded border text-sm hover:bg-gray-700 transition-colors ${
-                          icon === presetIcon ? 'bg-gray-600 border-gray-500' : 'bg-gray-800 border-gray-600'
+                          icon === presetIcon.emoji ? 'bg-gray-600 border-gray-400' : 'bg-gray-800 border-gray-600'
                         }`}
                       >
-                        {presetIcon}
+                        {presetIcon.emoji}
                       </button>
                     ))}
                   </div>
@@ -125,116 +165,121 @@ export default function CreateProjectDialog({ open, onOpenChange, onCreateProjec
                   Color
                 </label>
                 <div className="grid grid-cols-6 gap-2">
-                  {PRESET_COLORS.map((presetColor) => (
+                  {PRESET_COLORS.map((presetColor, index) => (
                     <button
-                      key={presetColor}
+                      key={`color-${index}-${presetColor}`} // Fixed: Use unique key
                       type="button"
                       onClick={() => setColor(presetColor)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        color === presetColor ? 'border-white scale-110' : 'border-gray-600 hover:scale-105'
+                      className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                        color === presetColor ? 'border-white scale-110' : 'border-transparent'
                       }`}
                       style={{ backgroundColor: presetColor }}
                     />
                   ))}
                 </div>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="mt-2 w-16 h-8 rounded border border-gray-600 bg-gray-800"
+                />
               </div>
             </div>
 
             {/* Project Title */}
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Project Title *
               </label>
               <input
                 type="text"
-                id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#6E86FF] focus:outline-none"
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter project title..."
                 required
+                disabled={isSubmitting}
               />
             </div>
 
             {/* Project Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Description
               </label>
               <textarea
-                id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#6E86FF] focus:outline-none resize-none"
-                placeholder="Describe your project..."
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter project description..."
+                disabled={isSubmitting}
               />
             </div>
 
             {/* Category and Tags */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Category
                 </label>
                 <input
                   type="text"
-                  id="category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#6E86FF] focus:outline-none"
-                  placeholder="e.g., Development, Design, Marketing"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g. Work, Personal"
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div>
-                <label htmlFor="estimatedHours" className="block text-sm font-medium text-gray-300 mb-2">
-                  Estimated Hours
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Tags
                 </label>
                 <input
-                  type="number"
-                  id="estimatedHours"
-                  value={estimatedHours}
-                  onChange={(e) => setEstimatedHours(e.target.value)}
-                  min="0"
-                  step="0.5"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#6E86FF] focus:outline-none"
-                  placeholder="0"
+                  type="text"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="tag1, tag2, tag3"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
-            {/* Tags */}
+            {/* Estimated Hours */}
             <div>
-              <label htmlFor="tags" className="block text-sm font-medium text-gray-300 mb-2">
-                Tags
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Estimated Hours
               </label>
               <input
-                type="text"
-                id="tags"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#6E86FF] focus:outline-none"
-                placeholder="tag1, tag2, tag3..."
+                type="number"
+                value={estimatedHours}
+                onChange={(e) => setEstimatedHours(e.target.value)}
+                min="0"
+                step="0.5"
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="0"
+                disabled={isSubmitting}
               />
-              <p className="text-xs text-gray-400 mt-1">Separate multiple tags with commas</p>
             </div>
 
-            {/* Actions */}
-            <div className="flex space-x-3 pt-4">
+            {/* Submit Buttons */}
+            <div className="flex justify-end space-x-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="flex-1"
                 disabled={isSubmitting}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="flex-1 bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white"
-                disabled={!title.trim() || isSubmitting}
+                disabled={isSubmitting || !title.trim()}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {isSubmitting ? 'Creating...' : 'Create Project'}
               </Button>

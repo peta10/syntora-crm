@@ -1,33 +1,28 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Project, Todo } from '@/app/types/todo';
+import { projectsService } from '@/app/lib/supabase/projects';
 import { ProjectManager } from '@/app/components/projects/ProjectManager';
-import useStore from '@/app/store/slices/todoSlice';
-import { Project } from '@/app/types/todo';
-import { projectsService, CreateProjectData, UpdateProjectData } from '@/app/lib/supabase/projects';
-import { toast } from 'sonner';
 
 export default function ProjectsPage() {
-  const { todos } = useStore();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Load projects from database on component mount
-  useEffect(() => {
-    loadProjects();
-  }, []);
 
   const loadProjects = async () => {
     try {
       setLoading(true);
       setError(null);
-      const projectsData = await projectsService.getProjects();
-      setProjects(projectsData);
-    } catch (err) {
-      console.error('Error loading projects:', err);
-      setError('Failed to load projects. Please try again.');
-      toast.error('Failed to load projects');
+      
+      console.log('Loading projects...');
+      const data = await projectsService.getProjects();
+      console.log('Projects loaded:', data);
+      setProjects(data);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load projects');
     } finally {
       setLoading(false);
     }
@@ -35,140 +30,90 @@ export default function ProjectsPage() {
 
   const handleCreateProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const createData: CreateProjectData = {
-        title: projectData.title,
-        description: projectData.description || '',
-        color: projectData.color || '#6E86FF',
-        icon: projectData.icon || '📁',
-        status: projectData.status || 'active',
-        category: projectData.category,
-        tags: projectData.tags,
-        estimated_hours: projectData.estimated_hours,
-        is_public: false, // Default to private
-      };
-
-      const newProject = await projectsService.createProject(createData);
-      setProjects(prev => [newProject, ...prev]); // Add to beginning for newest first
-      toast.success('Project created successfully!');
+      console.log('Creating project with data:', projectData);
       
-      console.log('Created project:', newProject);
+      const newProject = await projectsService.createProject(projectData);
+      console.log('Project created successfully:', newProject);
+      
+      setProjects(prev => [newProject, ...prev]);
+      return newProject;
     } catch (error) {
       console.error('Error creating project:', error);
-      toast.error('Failed to create project');
+      setError(error instanceof Error ? error.message : 'Failed to create project');
+      throw error; // Re-throw to let the dialog handle it
     }
   };
 
   const handleUpdateProject = async (id: string, updates: Partial<Project>) => {
     try {
-      const updateData: UpdateProjectData = {
-        title: updates.title,
-        description: updates.description,
-        color: updates.color,
-        icon: updates.icon,
-        status: updates.status,
-        category: updates.category,
-        tags: updates.tags,
-        estimated_hours: updates.estimated_hours,
-        actual_hours: updates.actual_hours,
-      };
-
-      const updatedProject = await projectsService.updateProject(id, updateData);
-      setProjects(prev => prev.map(p => 
-        p.id === id ? updatedProject : p
-      ));
-      toast.success('Project updated successfully!');
-      
-      console.log('Updated project:', id, updatedProject);
+      console.log('Updating project:', id, updates);
+      const updatedProject = await projectsService.updateProject(id, updates);
+      setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
+      return updatedProject;
     } catch (error) {
       console.error('Error updating project:', error);
-      toast.error('Failed to update project');
+      setError(error instanceof Error ? error.message : 'Failed to update project');
+      throw error;
     }
   };
 
   const handleDeleteProject = async (id: string) => {
     try {
+      console.log('Deleting project:', id);
       await projectsService.deleteProject(id);
       setProjects(prev => prev.filter(p => p.id !== id));
-      toast.success('Project deleted successfully!');
-      
-      console.log('Deleted project:', id);
     } catch (error) {
       console.error('Error deleting project:', error);
-      toast.error('Failed to delete project');
+      setError(error instanceof Error ? error.message : 'Failed to delete project');
+      throw error;
     }
   };
 
-  const handleAssignTaskToProject = async (taskId: string, projectId: string) => {
-    try {
-      await projectsService.assignTaskToProject(taskId, projectId);
-      
-      // Refresh the specific project to update task counts
-      const updatedProject = await projectsService.getProjectById(projectId);
-      if (updatedProject) {
-        setProjects(prev => prev.map(p => 
-          p.id === projectId ? updatedProject : p
-        ));
-      }
-      
-      toast.success('Task assigned to project successfully!');
-      console.log('Assigned task to project:', taskId, projectId);
-    } catch (error) {
-      console.error('Error assigning task to project:', error);
-      toast.error('Failed to assign task to project');
-    }
-  };
+  useEffect(() => {
+    loadProjects();
+  }, []);
 
-  const handleDuplicateProject = async (id: string) => {
-    try {
-      const duplicatedProject = await projectsService.duplicateProject(id);
-      setProjects(prev => [duplicatedProject, ...prev]);
-      toast.success('Project duplicated successfully!');
-    } catch (error) {
-      console.error('Error duplicating project:', error);
-      toast.error('Failed to duplicate project');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
-        <div className="text-center bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8">
-          <div className="w-16 h-16 border-4 border-[#6E86FF]/30 border-t-[#6E86FF] rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading projects...</p>
-        </div>
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-white mb-2">Projects</h1>
+        <p className="text-gray-400">Manage your projects and track progress</p>
       </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
-        <div className="text-center bg-gray-900/50 backdrop-blur-sm border border-red-500/20 rounded-2xl p-8">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button 
+      {error && (
+        <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+          <div className="flex items-center justify-between">
+            <p className="text-red-400">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-300"
+            >
+              ✕
+            </button>
+          </div>
+          <button
             onClick={loadProjects}
-            className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white px-4 py-2 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200"
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
           >
             Retry
           </button>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
-      <ProjectManager
-        projects={projects}
-        todos={todos}
-        onCreateProject={handleCreateProject}
-        onUpdateProject={handleUpdateProject}
-        onDeleteProject={handleDeleteProject}
-        onAssignTaskToProject={handleAssignTaskToProject}
-        onDuplicateProject={handleDuplicateProject}
-        defaultView="list" // Always start in list view
-        defaultSort="newest" // Show newest projects first
-      />
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      ) : (
+        <ProjectManager
+          projects={projects}
+          todos={todos}
+          onCreateProject={handleCreateProject}
+          onUpdateProject={handleUpdateProject}
+          onDeleteProject={handleDeleteProject}
+          loading={loading}
+        />
+      )}
     </div>
   );
 } 

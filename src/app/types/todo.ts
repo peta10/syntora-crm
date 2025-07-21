@@ -47,6 +47,8 @@ export interface Project {
   tags?: string[];
   category?: string;
   is_overdue?: boolean;
+  owner_id: string;
+  is_public: boolean;
 }
 
 export interface Achievement {

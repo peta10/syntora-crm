@@ -36,13 +36,10 @@ import EditProjectDialog from './EditProjectDialog';
 interface ProjectManagerProps {
   projects: Project[];
   todos: Todo[];
-  onCreateProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  onUpdateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  onCreateProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<Project>;
+  onUpdateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
   onDeleteProject: (id: string) => Promise<void>;
-  onAssignTaskToProject: (taskId: string, projectId: string) => Promise<void>;
-  onDuplicateProject?: (id: string) => Promise<void>;
-  defaultView?: 'list' | 'grid';
-  defaultSort?: 'newest' | 'oldest' | 'alphabetical' | 'progress';
+  loading: boolean;
 }
 
 type ViewMode = 'list' | 'grid';
@@ -54,14 +51,11 @@ export function ProjectManager({
   todos, 
   onCreateProject, 
   onUpdateProject, 
-  onDeleteProject, 
-  onAssignTaskToProject,
-  onDuplicateProject,
-  defaultView = 'list',
-  defaultSort = 'newest'
+  onDeleteProject,
+  loading
 }: ProjectManagerProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>(defaultView);
-  const [sortMode, setSortMode] = useState<SortMode>(defaultSort);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -80,17 +74,7 @@ export function ProjectManager({
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
-    let filtered = projects;
-
-    // Apply status filter
-    if (filterMode !== 'all') {
-      filtered = filtered.filter(p => p.status === filterMode);
-    }
-
-    // Apply category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(p => p.category === selectedCategory);
-    }
+    let filtered = [...projects];
 
     // Apply search filter
     if (searchQuery) {
@@ -103,215 +87,142 @@ export function ProjectManager({
       );
     }
 
+    // Apply status filter
+    if (filterMode !== 'all') {
+      filtered = filtered.filter(p => p.status === filterMode);
+    }
+
+    // Apply category filter
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(p => p.category === selectedCategory);
+    }
+
     // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortMode) {
-        case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'oldest':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'alphabetical':
-          return a.title.localeCompare(b.title);
-        case 'progress':
-          return (b.progress_percentage || 0) - (a.progress_percentage || 0);
-        default:
-          return 0;
-      }
-    });
+    switch (sortMode) {
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        break;
+      case 'alphabetical':
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'progress':
+        filtered.sort((a, b) => b.progress_percentage - a.progress_percentage);
+        break;
+    }
 
     return filtered;
-  }, [projects, filterMode, selectedCategory, searchQuery, sortMode]);
+  }, [projects, searchQuery, filterMode, selectedCategory, sortMode]);
 
-  const handleToggleExpanded = (projectId: string) => {
-    setExpandedProjects(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(projectId)) {
-        newSet.delete(projectId);
-      } else {
-        newSet.add(projectId);
-      }
-      return newSet;
-    });
+  const handleCreateProjectSubmit = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
+    await onCreateProject(projectData);
   };
 
-  const getProjectTasks = (projectId: string) => {
-    return todos.filter(todo => todo.project_id === projectId);
-  };
-
-  const getStatusColor = (status: string, isOverdue?: boolean) => {
-    if (isOverdue) return 'bg-red-500/20 text-red-400 border-red-500/30';
-    switch (status) {
-      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'completed': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      case 'on_hold': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'archived': return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
+  const handleUpdateProjectSubmit = async (id: string, updates: Partial<Project>) => {
+    await onUpdateProject(id, updates);
   };
 
   const ProjectCard = ({ project }: { project: Project }) => {
-    const projectTasks = getProjectTasks(project.id);
     const isExpanded = expandedProjects.has(project.id);
+    const projectTodos = todos.filter(t => t.project_id === project.id);
+    const completedTodos = projectTodos.filter(t => t.completed);
+    const progress = projectTodos.length > 0 
+      ? (completedTodos.length / projectTodos.length) * 100 
+      : 0;
 
     return (
-      <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-700/50 hover:bg-gray-800/50 hover:border-gray-600/50 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] group">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-3">
-              <div 
-                className="w-12 h-12 rounded-lg flex items-center justify-center text-xl"
-                style={{ backgroundColor: project.color + '20', border: `1px solid ${project.color}40` }}
-              >
-                {project.icon}
-              </div>
-              <div>
-                <CardTitle className="text-white group-hover:text-white/90 transition-colors">
-                  {project.title}
-                </CardTitle>
-                <CardDescription className="text-gray-400 group-hover:text-gray-300 transition-colors">
-                  {project.description}
-                </CardDescription>
-              </div>
+      <Card className={`bg-gray-800/50 border-gray-700/50 backdrop-blur-sm transition-all duration-200 ${
+        viewMode === 'grid' ? 'hover:scale-[1.02]' : ''
+      }`}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div className="flex items-center space-x-2">
+            <div 
+              className="w-8 h-8 rounded flex items-center justify-center text-lg"
+              style={{ backgroundColor: project.color + '20', color: project.color }}
+            >
+              {project.icon}
             </div>
-            <div className="flex items-center space-x-2">
-              <Badge className={getStatusColor(project.status, project.is_overdue)}>
-                {project.is_overdue ? 'Overdue' : project.status.replace('_', ' ')}
-              </Badge>
-              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingProject(project)}
-                  className="h-8 w-8 p-0 text-gray-400 hover:text-white"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                {onDuplicateProject && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDuplicateProject(project.id)}
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-white"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDeleteProject(project.id)}
-                  className="h-8 w-8 p-0 text-gray-400 hover:text-red-400"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            <CardTitle className="text-lg font-semibold text-white">
+              {project.title}
+            </CardTitle>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-white"
+              onClick={() => setEditingProject(project)}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-red-400"
+              onClick={() => onDeleteProject(project.id)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {/* Progress */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-400">Progress</span>
-                <span className="text-sm text-white">{project.progress_percentage}%</span>
+          {project.description && (
+            <CardDescription className="text-gray-400 mt-1">
+              {project.description}
+            </CardDescription>
+          )}
+          
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-300">
+                  {project.estimated_hours ? `${project.estimated_hours}h estimated` : 'No time estimate'}
+                </span>
               </div>
-              <Progress 
-                value={project.progress_percentage} 
-                className="h-2"
-                style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                }}
-              />
+              <Badge 
+                variant="outline" 
+                className={`
+                  ${project.status === 'active' ? 'border-green-500/30 text-green-400' : ''}
+                  ${project.status === 'completed' ? 'border-blue-500/30 text-blue-400' : ''}
+                  ${project.status === 'on_hold' ? 'border-yellow-500/30 text-yellow-400' : ''}
+                  ${project.status === 'archived' ? 'border-gray-500/30 text-gray-400' : ''}
+                `}
+              >
+                {project.status}
+              </Badge>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-lg font-bold text-white">{project.completed_tasks}</div>
-                <div className="text-xs text-gray-400">Completed</div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">Progress</span>
+                <span className="text-gray-300">{Math.round(progress)}%</span>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-white">{project.total_tasks}</div>
-                <div className="text-xs text-gray-400">Total Tasks</div>
-              </div>
+              <Progress value={progress} className="h-1" />
             </div>
 
-            {/* Tags */}
+            {project.category && (
+              <div className="flex items-center space-x-2 text-sm">
+                <Folder className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-300">{project.category}</span>
+              </div>
+            )}
+
             {project.tags && project.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {project.tags.map((tag) => (
+              <div className="flex flex-wrap gap-2">
+                {project.tags.map(tag => (
                   <Badge 
                     key={tag} 
-                    variant="outline" 
-                    className="text-xs bg-gray-800/50 text-gray-300 border-gray-600"
+                    variant="secondary"
+                    className="bg-gray-700/50 text-gray-300"
                   >
                     {tag}
                   </Badge>
                 ))}
               </div>
             )}
-
-            {/* Category */}
-            {project.category && (
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-400">Category:</span>
-                <Badge variant="outline" className="text-xs bg-gray-800/50 text-gray-300 border-gray-600">
-                  {project.category}
-                </Badge>
-              </div>
-            )}
-
-            {/* Expandable Tasks Section */}
-            {projectTasks.length > 0 && (
-              <div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleToggleExpanded(project.id)}
-                  className="w-full justify-between text-gray-400 hover:text-white"
-                >
-                  <span>Tasks ({projectTasks.length})</span>
-                  {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-                
-                {isExpanded && (
-                  <div className="mt-2 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-                    {projectTasks.map((task) => (
-                      <div 
-                        key={task.id}
-                        className="flex items-center space-x-2 p-2 bg-gray-800/30 rounded border border-gray-700/30"
-                      >
-                        <div className={`w-2 h-2 rounded-full ${task.completed ? 'bg-green-500' : 'bg-gray-500'}`} />
-                        <span className={`text-sm flex-1 ${task.completed ? 'text-gray-400 line-through' : 'text-white'}`}>
-                          {task.title}
-                        </span>
-                        {task.priority && (
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              task.priority === 'high' ? 'border-red-500/50 text-red-400' :
-                              task.priority === 'medium' ? 'border-yellow-500/50 text-yellow-400' :
-                              'border-green-500/50 text-green-400'
-                            }`}
-                          >
-                            {task.priority}
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Dates */}
-            <div className="text-xs text-gray-500">
-              Created: {new Date(project.created_at).toLocaleDateString()}
-              {project.updated_at !== project.created_at && (
-                <> • Updated: {new Date(project.updated_at).toLocaleDateString()}</>
-              )}
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -351,70 +262,69 @@ export function ProjectManager({
           />
         </div>
 
-        <div className="flex items-center space-x-4">
-          {/* Filters */}
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              value={filterMode}
-              onChange={(e) => setFilterMode(e.target.value as FilterMode)}
-              className="bg-gray-800/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white text-sm focus:border-[#6E86FF] focus:outline-none"
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2">
+          {/* View Toggle */}
+          <div className="flex rounded-lg overflow-hidden border border-gray-700">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 flex items-center ${
+                viewMode === 'list' 
+                  ? 'bg-gray-700 text-white' 
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="on_hold">On Hold</option>
-              <option value="archived">Archived</option>
-            </select>
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-2 flex items-center ${
+                viewMode === 'grid' 
+                  ? 'bg-gray-700 text-white' 
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </button>
           </div>
+
+          {/* Sort */}
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="alphabetical">Alphabetical</option>
+            <option value="progress">Progress</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterMode}
+            onChange={(e) => setFilterMode(e.target.value as FilterMode)}
+            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="on_hold">On Hold</option>
+            <option value="archived">Archived</option>
+          </select>
 
           {/* Category Filter */}
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="bg-gray-800/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white text-sm focus:border-[#6E86FF] focus:outline-none"
+            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
           >
-            {categories.map(cat => (
-              <option key={cat} value={cat}>
-                {cat === 'all' ? 'All Categories' : cat}
+            {categories.map(category => (
+              <option key={category} value={category}>
+                {category === 'all' ? 'All Categories' : category}
               </option>
             ))}
           </select>
-
-          {/* Sort */}
-          <div className="flex items-center space-x-2">
-            <SortAsc className="w-4 h-4 text-gray-400" />
-            <select
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as SortMode)}
-              className="bg-gray-800/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white text-sm focus:border-[#6E86FF] focus:outline-none"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="alphabetical">Alphabetical</option>
-              <option value="progress">By Progress</option>
-            </select>
-          </div>
-
-          {/* View Mode */}
-          <div className="flex items-center bg-gray-800/50 border border-gray-600/50 rounded-lg p-1">
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="h-8 w-8 p-0"
-            >
-              <List className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="h-8 w-8 p-0"
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -457,7 +367,7 @@ export function ProjectManager({
       <CreateProjectDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onCreateProject={onCreateProject}
+        onCreateProject={handleCreateProjectSubmit}
       />
 
       {editingProject && (
@@ -465,7 +375,7 @@ export function ProjectManager({
           project={editingProject}
           open={!!editingProject}
           onOpenChange={() => setEditingProject(null)}
-          onUpdateProject={onUpdateProject}
+          onUpdateProject={handleUpdateProjectSubmit}
         />
       )}
     </div>
