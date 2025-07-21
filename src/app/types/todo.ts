@@ -46,6 +46,7 @@ export interface Project {
   actual_hours?: number;
   tags?: string[];
   category?: string;
+  is_overdue?: boolean;
 }
 
 export interface Achievement {
