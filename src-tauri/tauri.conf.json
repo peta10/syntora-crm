@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "identifier": "com.syntora.todo",
+  "productName": "Syntora Todo",
+  "version": "1.0.0",
+  "build": {
+    "frontendDist": "../out",
+    "devUrl": "http://localhost:3000"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Syntora Todo - Personal Task Manager",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "center": true,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "closable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "Productivity",
+    "copyright": "© 2025 Syntora",
+    "shortDescription": "Personal task manager with spiritual focus",
+    "longDescription": "A beautiful todo application that integrates with your daily reflection system"
+  }
+}

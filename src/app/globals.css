@@ -1,26 +1,290 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 0 0% 0%; /* Black background */
+    --foreground: 0 0% 100%; /* White text */
+    --card: 210 40% 2%;
+    --card-foreground: 0 0% 95%;
+    --popover: 210 40% 2%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 210 40% 8%;
+    --primary-foreground: 0 0% 95%;
+    --secondary: 210 40% 6%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 210 40% 6%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 210 40% 8%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 214.3 31.8% 8.5%;
+    --input: 214.3 31.8% 8.5%;
+    --ring: 263.4 70% 50.4%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    
+    /* Spiritual color palette */
+    --spiritual-50: 250 100% 97%;
+    --spiritual-100: 251 91% 95%;
+    --spiritual-200: 251 95% 87%;
+    --spiritual-300: 252 95% 78%;
+    --spiritual-400: 253 93% 68%;
+    --spiritual-500: 110 86% 53%; /* Main spiritual color */
+    --spiritual-600: 255 91% 67%;
+    --spiritual-700: 256 84% 60%;
+    --spiritual-800: 257 78% 52%;
+    --spiritual-900: 258 69% 43%;
+    --spiritual-950: 260 69% 28%;
+    
+    /* Gaming theme colors */
+    --neon-blue: 214 100% 70%;
+    --neon-pink: 324 100% 70%;
+    --neon-purple: 271 100% 70%;
+    --neon-green: 142 100% 70%;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
+    --card: 224 71.4% 2%;
+    --card-foreground: 0 0% 98%;
+    --popover: 224 71.4% 2%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 27.9% 8.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 8.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 8.9%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 8.9%;
+    --input: 215 27.9% 8.9%;
+    --ring: 263.4 70% 50.4%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    background: radial-gradient(circle at 20% 50%, rgba(110, 134, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 107, 186, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(178, 121, 219, 0.1) 0%, transparent 50%),
+                #000000;
+    min-height: 100vh;
+  }
 }
+
+/* Gaming UI Enhancements */
+@layer components {
+  /* Glowing effects */
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(110, 134, 255, 0.5);
+  }
+  
+  .glow-pink {
+    box-shadow: 0 0 20px rgba(255, 107, 186, 0.5);
+  }
+  
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(178, 121, 219, 0.5);
+  }
+  
+  .glow-green {
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.5);
+  }
+
+  /* Animated gradients */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(90deg, #6E86FF, #FF6BBA, #B279DB, #6E86FF);
+    background-size: 400% 400%;
+    animation: gradientShift 3s ease infinite;
+  }
+  
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    background: inherit;
+    border-radius: inherit;
+  }
+
+  /* Particle animation keyframes */
+  .particle-float {
+    animation: particleFloat 3s ease-in-out infinite;
+  }
+  
+  /* Neon text effects */
+  .neon-text {
+    text-shadow: 
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 15px currentColor,
+      0 0 20px currentColor;
+  }
+
+  /* Custom scrollbar for dark theme */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #6E86FF, #FF6BBA);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #5a73e6, #e55aa0);
+  }
+}
+
+/* Animation keyframes */
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(120deg);
+  }
+  66% {
+    transform: translateY(5px) rotate(240deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-from-right {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-top {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes zoom-in {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Utility classes for the new theme */
+.animate-bounce-in {
+  animation: bounce-in 0.6s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-in {
+  animation-duration: 0.5s;
+  animation-fill-mode: both;
+}
+
+.slide-in-from-right {
+  animation-name: slide-in-from-right;
+}
+
+.slide-in-from-top {
+  animation-name: slide-in-from-top;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.zoom-in {
+  animation-name: zoom-in;
+}
+
+/* Glass morphism effects */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+} 

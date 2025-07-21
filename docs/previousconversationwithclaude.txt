@@ -1,0 +1,399 @@
+The tool is at the bottom, I need the how it works to be the entry into the tool, so tha's the first part, they see how it works, then they have the option to click Rank your Criteira which should be the in bottom left. When they click the button it needs to take you to the tool which is the bottom portion. but when we enter the tool we should no longer see the How it works section or the rank your criteria button or the section with " Find Your Perfect PPM Tool
+Get 100% free personalized recommendations in minutes with our intelligent Project Portfolio Management Tool assessment. Make informed decisions and focus on key features identified through deep research for lasting project portfolio success." This is only for when they open the page up and its an informational on the ppm tool but this needs to go away. We will have a header because this will be embedded under the products section in the header/navbar and there will be an option for the ppm tool in that section then they open this and its nested/embedded with this seperate repoistory which is the ppm tool. so we dont need to worry about the header/nav bar. https://panoramic-solutions.netlify.app/ppm-tool-finder
+https://panoramic-solutions.netlify.app/I need a prompt to give to cursor to help build this correctly and in a way thats fast, mobile friendly and that will give my client the end product he requires. How can we do this, and the Instant Intelligence
+Get smart recommendations in minutes, not months of research.
+Tailored Results
+Customized analysis based on your specific organizational needs.
+Proven Methodology
+Research-backed framework used by leading organizations.
+Start on Course
+Begin with confidence knowing you've made the right choice.Needs to go above the tool when opened but in slim way spread accross the whole width of the screen. DO you understand?EditI understand! You want to restructure the application so that:
+
+Initial Landing View: Shows "How It Works" section first as the entry point
+Tool Entry: "Rank Your Criteria: Question 1" button (bottom left) launches the actual tool
+Tool View: When tool opens, hide the marketing content and show the 4 value props as a slim banner above the tool
+Clean Separation: No more hero section or marketing copy once in the tool
+
+Here's a comprehensive prompt for Cursor to implement these changes:
+<artifacts>
+<invoke name="artifacts">
+<parameter name="command">create</parameter>
+<parameter name="type">text/markdown</parameter>
+<parameter name="id">cursor_prompt</parameter>
+<parameter name="title">Cursor Implementation Prompt - PPM Tool Restructure</parameter>
+<parameter name="content"># PPM Tool Application Restructure - Implementation Guide
+Overview
+Restructure the PPM Tool application to have a clear separation between marketing/landing content and the actual tool functionality. The app should start with "How It Works" as the main entry point, then seamlessly transition to the tool interface.
+Current Structure to Modify
+File: src/components/common/WelcomeScreen.tsx
+Required Changes
+1. Initial Landing State
+
+Remove the hero section ("Find Your Perfect PPM Tool" heading and description)
+Remove the 4 value props cards from the initial view
+Start directly with "How It Works" section as the primary content
+Keep the "Rank Your Criteria: Question 1" button positioned bottom-left
+
+2. Tool State (After Button Click)
+When user clicks "Rank Your Criteria: Question 1":
+
+Hide completely:
+
+How It Works section
+"Rank Your Criteria: Question 1" button
+Any marketing copy/descriptions
+
+
+Show slim value props banner across full width above the tool:
+
+Instant Intelligence - Get smart recommendations in minutes, not months of research
+Tailored Results - Customized analysis based on your specific organizational needs
+Proven Methodology - Research-backed framework used by leading organizations
+Start on Course - Begin with confidence knowing you've made the right choice
+
+
+Display the tool (EmbeddedPPMToolFlow)
+
+3. Value Props Banner Design
+
+Full width, slim horizontal layout
+4 columns on desktop, stacked/scrollable on mobile
+Clean, professional styling that doesn't compete with tool interface
+Minimal height (~80px desktop, ~auto mobile)
+Icons for each value prop (⚡, 🎯, ✅, 🚀)
+
+4. State Management
+Add state management to track:
+javascriptconst [showTool, setShowTool] = useState(false);
+5. Mobile Optimization
+
+Ensure smooth transitions between states
+Value props banner should be responsive
+Tool interface should work seamlessly on mobile
+Maintain touch-friendly interactions
+
+6. Implementation Structure
+javascript// In WelcomeScreen.tsx
+const [showTool, setShowTool] = useState(false);
+
+if (showTool) {
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Slim Value Props Banner */}
+      <ValuePropsBanner />
+      
+      {/* PPM Tool */}
+      <EmbeddedPPMToolFlow />
+    </div>
+  );
+}
+
+// Initial landing view with How It Works only
+return (
+  <div className="min-h-screen bg-white">
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* How It Works Section - make this the primary content */}
+      <HowItWorksSection />
+      
+      {/* Entry Button - bottom left positioning */}
+      <StartButton onClick={() => setShowTool(true)} />
+    </div>
+  </div>
+);
+7. New Components to Create
+ValuePropsBanner Component
+javascriptconst ValuePropsBanner = () => (
+  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 py-4">
+    <div className="max-w-6xl mx-auto px-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* 4 value props in horizontal layout */}
+      </div>
+    </div>
+  </div>
+);
+8. Styling Requirements
+
+Clean, modern interface
+Fast loading and smooth transitions
+Mobile-first responsive design
+Consistent with existing tool styling
+No visual jarring between states
+
+9. Performance Considerations
+
+Lazy load the tool component
+Smooth state transitions
+Optimize bundle size
+Ensure fast initial load
+
+10. Testing Checklist
+
+ Landing page shows How It Works first
+ Button correctly launches tool
+ Value props banner displays properly
+ Tool functions normally in new structure
+ Mobile experience is smooth
+ No marketing content visible in tool mode
+ Responsive design works across devices
+
+Key Files to Modify
+
+src/components/common/WelcomeScreen.tsx - Main restructure
+Create new ValuePropsBanner component
+Update any related styling/CSS files
+Test EmbeddedPPMToolFlow integration
+
+Success Criteria
+
+Clean separation between landing and tool
+Professional value props banner
+Seamless user experience
+Mobile-optimized interface
+Fast, responsive performance
+
+Implement these changes to create a professional, embedded-ready PPM tool interface that can be integrated into the main Panoramic Solutions website.</parameter>
+</invoke>RetryPGAwesome now we need diffrent toggles, we dont need the last results page, we only need two pages to toggle between for the desktop/tablet and three for the mobile so everything looks nicely. We need the Criteria and the Tools & Recommendations page to be side by side with the Criteria page on the left and the Tools & Recommendatiosn page on the right, but we need to keep the same buttons for the toggles at the top. So for the second page on the desktop that will be entirely for the chart comparison. So on desktop the buttons will be Criteria + Tools (With the recommendations) then the Chart Compairson On mobile it will be split up into three diffrent, Criteria Tools & Recommendatios and the Chart Comparison. We will get rid of the final result page as that will be embedded into the mix. Do you understand what we need. We need the buttons to be like toggles where they can switch back and forth. So i need a prompt for this as well. Thank youEdit2 / 2Yes, I understand perfectly! You want to restructure the navigation to have:
+Desktop/Tablet (2 toggles):
+
+Criteria + Tools - Split view with Criteria (left) and Tools & Recommendations (right)
+Chart Comparison - Full width chart analysis
+
+Mobile (3 toggles):
+
+Criteria - Criteria section only
+Tools & Recommendations - Combined tools and recommendations
+Chart Comparison - Chart analysis
+
+Here's the prompt for Cursor:
+<artifacts>
+<invoke name="artifacts">
+<parameter name="command">create</parameter>
+<parameter name="type">text/markdown</parameter>
+<parameter name="id">navigation_restructure_prompt</parameter>
+<parameter name="title">Cursor Prompt - Navigation & Layout Restructure</parameter>
+<parameter name="content"># PPM Tool Navigation & Layout Restructure - Implementation Guide
+Overview
+Restructure the PPM Tool navigation system to use toggle-based navigation with different layouts for desktop/mobile. Remove the final results page and integrate recommendations into the tools section.
+Current Files to Modify
+
+src/shared/contexts/StepContext.tsx
+src/shared/contexts/FullscreenContext.tsx
+src/components/layout/StepsSection.tsx
+src/app/Router.tsx
+src/components/common/EmbeddedPPMToolFlow.tsx
+
+Required Navigation Structure
+Desktop/Tablet Layout (≥1024px)
+Toggle 1: "Criteria + Tools"
+
+Split-screen layout (50/50 or 40/60)
+Left side: Criteria section
+Right side: Tools & Recommendations combined
+
+Toggle 2: "Chart Analysis"
+
+Full-width chart comparison
+Maintain all existing chart functionality
+
+Mobile Layout (<1024px)
+Toggle 1: "Criteria"
+
+Full-screen criteria section only
+
+Toggle 2: "Tools & Recommendations"
+
+Combined tools selection and recommendations
+Vertical stack layout
+
+Toggle 3: "Chart Analysis"
+
+Full-screen chart comparison
+
+Implementation Requirements
+1. Update Step Context
+typescript// Update step types
+type Step = 'criteria-tools' | 'chart' | 'criteria' | 'tools-recommendations';
+
+// Add responsive step logic
+const getStepsForDevice = (isMobile: boolean) => {
+  if (isMobile) {
+    return [
+      { id: 'criteria', label: 'Criteria', icon: Sliders },
+      { id: 'tools-recommendations', label: 'Tools & Recommendations', icon: Award },
+      { id: 'chart', label: 'Chart Analysis', icon: LineChart }
+    ];
+  } else {
+    return [
+      { id: 'criteria-tools', label: 'Criteria + Tools', icon: Layout },
+      { id: 'chart', label: 'Chart Analysis', icon: LineChart }
+    ];
+  }
+};
+2. Update Router Logic
+typescript// Desktop routing
+if (!isMobile) {
+  switch (currentStep) {
+    case 'criteria-tools':
+      return (
+        <div className="grid grid-cols-2 gap-6 h-full">
+          <div className="overflow-hidden">
+            <CriteriaSection {...criteriaProps} />
+          </div>
+          <div className="overflow-hidden">
+            <CombinedToolsAndRecommendations {...toolsProps} />
+          </div>
+        </div>
+      );
+    case 'chart':
+      return <ComparisonChart {...chartProps} />;
+  }
+}
+
+// Mobile routing
+switch (fullscreenView) {
+  case 'criteria':
+    return <CriteriaSection {...criteriaProps} />;
+  case 'tools-recommendations':
+    return <CombinedToolsAndRecommendations {...toolsProps} />;
+  case 'chart':
+    return <ComparisonChart {...chartProps} />;
+}
+3. Create Combined Tools & Recommendations Component
+typescript// New component: CombinedToolsAndRecommendations.tsx
+const CombinedToolsAndRecommendations = ({ 
+  // All tools props
+  // All recommendations props
+}) => {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Tools Section - Upper portion */}
+      <div className="flex-1 min-h-0">
+        <ToolSection {...toolsProps} />
+      </div>
+      
+      {/* Recommendations Section - Lower portion */}
+      <div className="flex-1 min-h-0 border-t">
+        <EnhancedRecommendationSection {...recommendationsProps} />
+      </div>
+    </div>
+  );
+};
+4. Update StepsSection Navigation
+typescriptconst StepsSection = () => {
+  const steps = getStepsForDevice(isMobile);
+  
+  return (
+    <div className="bg-white border-b">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex justify-center">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            {steps.map((step) => (
+              <button
+                key={step.id}
+                onClick={() => handleStepChange(step.id)}
+                className={`
+                  px-4 py-2 rounded-md font-medium transition-all
+                  ${isActive(step.id) 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                  }
+                `}
+              >
+                <step.icon className="w-4 h-4 mr-2 inline" />
+                {step.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+5. Layout Specifications
+Desktop Split Layout
+css.desktop-split {
+  display: grid;
+  grid-template-columns: 40% 60%; /* Adjust as needed */
+  gap: 1.5rem;
+  height: calc(100vh - 200px); /* Account for header/nav */
+}
+
+.desktop-split > div {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+Mobile Responsive Behavior
+css@media (max-width: 1023px) {
+  .desktop-split {
+    display: block;
+  }
+  
+  .mobile-fullscreen {
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+}
+6. State Management Updates
+typescript// Remove results-related state
+// Update navigation state to handle new structure
+const [currentView, setCurrentView] = useState(
+  isMobile ? 'criteria' : 'criteria-tools'
+);
+
+// Handle view transitions
+const handleViewChange = (view: string) => {
+  setCurrentView(view);
+  // Add smooth transition logic
+};
+7. Remove Results Page Dependencies
+
+Remove ResultsPage.tsx imports and references
+Remove results-related routing
+Integrate any essential results functionality into recommendations section
+Update navigation flow to end at chart analysis
+
+8. Integration Requirements
+
+Maintain all existing tool functionality
+Preserve data flow between components
+Keep recommendation scoring and display
+Ensure chart analysis works in both layouts
+
+9. UI/UX Enhancements
+
+Add smooth transitions between views
+Ensure proper scrolling in split layouts
+Maintain responsive design principles
+Add loading states for view transitions
+
+10. Mobile Optimizations
+
+Touch-friendly navigation toggles
+Proper viewport handling
+Smooth swipe transitions (optional)
+Optimized scrolling performance
+
+Success Criteria
+
+ Desktop shows 2 toggle buttons (Criteria + Tools, Chart Analysis)
+ Mobile shows 3 toggle buttons (Criteria, Tools & Recommendations, Chart Analysis)
+ Split layout works properly on desktop
+ All existing functionality preserved
+ Smooth transitions between views
+ Mobile responsive design maintained
+ No results page references remain
+ Recommendations integrated into tools section
+
+Testing Checklist
+
+ Desktop split view displays correctly
+ Mobile navigation flows properly
+ All tool functions work in new layout
+ Chart analysis maintains full functionality
+ Responsive breakpoints work correctly
+ Data flows correctly between sections
+ No broken navigation or missing content
+
+Implement these changes to create a streamlined, toggle-based navigation system that provides optimal layouts for both desktop and mobile users.</parameter>
+</invoke>

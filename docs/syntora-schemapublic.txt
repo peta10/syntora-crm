@@ -1,0 +1,174 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.agent_performance (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  agent_name character varying,
+  task_type character varying,
+  execution_time integer,
+  success_rate double precision,
+  user_satisfaction integer,
+  improvement_suggestions ARRAY,
+  recorded_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT agent_performance_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL,
+  role text NOT NULL CHECK (role = ANY (ARRAY['user'::text, 'assistant'::text, 'system'::text])),
+  content text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_messages_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.chat_sessions(id)
+);
+CREATE TABLE public.chat_sessions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_identifier text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_active timestamp with time zone NOT NULL DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT chat_sessions_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.contact_submissions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  company_name text,
+  email text NOT NULL,
+  contact_number text,
+  automation_request text,
+  ip_address text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT contact_submissions_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.conversation_intelligence (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id character varying,
+  participant_info jsonb,
+  summary text,
+  key_decisions ARRAY,
+  action_items ARRAY,
+  context_references ARRAY,
+  sentiment character varying,
+  conversation_date timestamp without time zone DEFAULT now(),
+  searchable_content text,
+  CONSTRAINT conversation_intelligence_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.conversation_memory (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  session_id text NOT NULL,
+  user_message text,
+  assistant_response text,
+  project_context text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT conversation_memory_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.gemini_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  content text NOT NULL,
+  username text NOT NULL,
+  room_name text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT gemini_messages_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  event_type text NOT NULL,
+  details jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.personal_preferences (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  category text NOT NULL,
+  preference_key text,
+  preference_value text,
+  notes text,
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT personal_preferences_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  username text UNIQUE,
+  full_name text,
+  avatar_url text,
+  website text,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.project_knowledge (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  knowledge_type text NOT NULL,
+  content text,
+  tags ARRAY,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT project_knowledge_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.projects (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  owner_id uuid NOT NULL,
+  is_public boolean DEFAULT false,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT projects_pkey PRIMARY KEY (id),
+  CONSTRAINT projects_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.syntora_memory (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  memory_type character varying NOT NULL,
+  entity_reference character varying,
+  memory_data jsonb NOT NULL,
+  importance_score integer DEFAULT 5,
+  last_accessed timestamp without time zone DEFAULT now(),
+  access_count integer DEFAULT 0,
+  tags ARRAY,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT syntora_memory_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.syntora_patterns (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  pattern_type character varying,
+  pattern_description text,
+  trigger_conditions jsonb,
+  typical_outcome jsonb,
+  confidence_score double precision,
+  usage_frequency integer DEFAULT 0,
+  last_observed timestamp without time zone DEFAULT now(),
+  CONSTRAINT syntora_patterns_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tasks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  status text DEFAULT 'todo'::text,
+  project_id uuid,
+  assigned_to uuid,
+  due_date timestamp with time zone,
+  priority text DEFAULT 'medium'::text,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tasks_pkey PRIMARY KEY (id),
+  CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT tasks_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.time_audit_submissions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  email text,
+  industry_id text NOT NULL,
+  role_id text NOT NULL,
+  size_id text NOT NULL,
+  answers jsonb NOT NULL,
+  potential_savings_hours numeric,
+  results_message text,
+  completed boolean DEFAULT true,
+  user_id uuid,
+  ip_address text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT time_audit_submissions_pkey PRIMARY KEY (id),
+  CONSTRAINT time_audit_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
