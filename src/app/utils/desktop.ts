@@ -1,5 +1,6 @@
 // Desktop utilities for Tauri
-import { Window } from '@tauri-apps/api/window';
+// Import types only
+import type { Window as TauriWindow } from '@tauri-apps/api/window';
 
 export interface NotificationOptions {
   title: string;
@@ -11,7 +12,7 @@ export class DesktopManager {
   private static instance: DesktopManager;
   private isDesktop: boolean = false;
   private permissionGranted: boolean = false;
-  private window: Window | null = null;
+  private window: TauriWindow | null = null;
 
   private constructor() {
     // Don't initialize in constructor to avoid SSR issues
@@ -34,6 +35,8 @@ export class DesktopManager {
       this.isDesktop = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
       
       if (this.isDesktop) {
+        // Dynamically import Tauri window
+        const { Window } = await import('@tauri-apps/api/window');
         this.window = new Window('main');
       }
       
@@ -109,5 +112,12 @@ export class DesktopManager {
   }
 }
 
-// Export singleton instance
-export const desktopManager = DesktopManager.getInstance(); 
+// Create instance only when imported
+let desktopManagerInstance: DesktopManager | null = null;
+
+export function getDesktopManager(): DesktopManager {
+  if (!desktopManagerInstance) {
+    desktopManagerInstance = DesktopManager.getInstance();
+  }
+  return desktopManagerInstance;
+} 

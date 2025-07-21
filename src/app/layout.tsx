@@ -6,7 +6,7 @@ import './globals.css';
 import Providers from './components/Providers';
 import Navigation from './components/layout/Navigation';
 import { GamingProvider } from '@/app/contexts/GamingContext';
-import { desktopManager } from '@/app/utils/desktop';
+import { getDesktopManager } from '@/app/utils/desktop';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,6 +19,7 @@ export default function RootLayout({
     // Initialize desktop features when the app starts
     const initDesktop = async () => {
       try {
+        const desktopManager = getDesktopManager();
         await desktopManager.init();
         if (desktopManager.isDesktopApp()) {
           console.log('Desktop features initialized');
