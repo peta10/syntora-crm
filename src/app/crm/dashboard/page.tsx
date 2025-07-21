@@ -2,17 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  BarChart3, 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
-  Calendar, 
-  Target,
-  ArrowUpRight,
   ArrowDownRight,
-  Phone,
+  ArrowUpRight,
+  BarChart3,
+  Calendar,
+  DollarSign,
   Mail,
-  Handshake
+  Phone,
+  Target,
+  TrendingUp,
+  Users
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardMetrics } from '@/app/types/crm';
@@ -109,7 +108,7 @@ const RecentActivityItem: React.FC<RecentActivityItemProps> = ({ type, title, su
       case 'call': return <Phone className="w-4 h-4 text-blue-400" />;
       case 'email': return <Mail className="w-4 h-4 text-green-400" />;
       case 'meeting': return <Calendar className="w-4 h-4 text-purple-400" />;
-      case 'deal': return <Handshake className="w-4 h-4 text-yellow-400" />;
+      case 'deal': return <Users className="w-4 h-4 text-yellow-400" />;
       default: return <Target className="w-4 h-4 text-gray-400" />;
     }
   };

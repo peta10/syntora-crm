@@ -286,10 +286,10 @@ export default function TasksPage() {
   const completedToday = todayProgress.filter(t => t.completed).length;
 
   const getProductivityInsight = () => {
-    if (completedToday >= 5) return { text: "🔥 You're on fire!", color: "text-red-400" };
+    if (completedToday >= 5) return { text: "🔥 You&#39;re on fire!", color: "text-red-400" };
     if (completedToday >= 3) return { text: "💪 Great momentum!", color: "text-green-400" };
     if (completedToday >= 1) return { text: "✨ Good start!", color: "text-blue-400" };
-    return { text: "", color: "" };
+    return { text: "", color: "text-purple-400" };
   };
 
   const insight = getProductivityInsight();
@@ -306,24 +306,19 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
       <div className="max-w-7xl mx-auto p-6 relative z-10">
         {/* Header */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-4">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-[#1a1b26] rounded-xl flex items-center justify-center relative shadow-lg border border-[#6E86FF]/20">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center relative">
               <Image
                 src="/FinalFavicon.webp"
                 alt="Syntora Logo"
-                width={32}
-                height={32}
-                className="w-8 h-8"
+                width={48}
+                height={48}
+                className="rounded-xl"
               />
-              {level > 1 && (
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-xs font-bold text-black shadow-md">
-                  {level}
-                </div>
-              )}
             </div>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Task Management</h1>
@@ -331,6 +326,7 @@ export default function TasksPage() {
                 <p className="text-gray-400 flex items-center space-x-2">
                   <span>Personal Productivity Engine</span>
                 </p>
+                <span className={`text-sm font-medium ${insight.color}`} dangerouslySetInnerHTML={{ __html: insight.text }} />
               </div>
             </div>
           </div>
@@ -341,13 +337,13 @@ export default function TasksPage() {
 
         {/* All day complete celebration */}
         {allDayComplete && (
-          <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 backdrop-blur-sm hover:from-green-500/30 hover:to-emerald-500/30 transition-all duration-300">
+          <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 backdrop-blur-sm">
             <div className="flex items-center justify-center space-x-3">
-              <Trophy className="w-8 h-8 text-yellow-400 animate-bounce" />
+              <Trophy className="w-8 h-8 text-yellow-400" />
               <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-green-400 bg-clip-text text-transparent">
                 🎉 All Tasks Complete! You&#39;re unstoppable! 🎉
               </h2>
-              <Trophy className="w-8 h-8 text-yellow-400 animate-bounce" />
+              <Trophy className="w-8 h-8 text-yellow-400" />
             </div>
           </div>
         )}
@@ -355,7 +351,7 @@ export default function TasksPage() {
         {/* Mobile: Tasks first, then Add Task button */}
         <div className="lg:hidden space-y-8">
           {/* Tasks List - Mobile First */}
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 hover:bg-gray-800/50 transition-all duration-300">
+          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50">
             {/* Filter Tabs */}
             <div className="border-b border-gray-700/50 p-6 pb-4">
               <div className="flex items-center justify-between mb-4">
@@ -529,30 +525,30 @@ export default function TasksPage() {
                               
                               {todo.show_gratitude && (
                                 <div className="flex items-center space-x-1">
-                                  <Star className="w-4 h-4 text-amber-400 animate-pulse" />
+                                  <Star className="w-4 h-4 text-amber-400" />
                                   <span className="text-xs text-amber-400 font-medium">+25 pts</span>
                                 </div>
                               )}
                               
-                              <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getPriorityColor(todo.priority)} transition-transform hover:scale-110`} />
+                              <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getPriorityColor(todo.priority)}`} />
                             </div>
                             
                             <div className="flex items-center space-x-4 text-sm text-gray-400">
                               {todo.category && (
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(todo.category)} transition-all hover:scale-105`}>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(todo.category)}`}>
                                   {todo.category}
                                 </span>
                               )}
                               
                               {todo.due_date && (
-                                <div className="flex items-center space-x-1 transition-colors hover:text-gray-300">
+                                <div className="flex items-center space-x-1">
                                   <Calendar className="w-4 h-4" />
                                   <span>{new Date(todo.due_date).toLocaleDateString()}</span>
                                 </div>
                               )}
                               
                               {todo.estimated_duration && todo.estimated_duration > 0 && (
-                                <div className="flex items-center space-x-1 transition-colors hover:text-gray-300">
+                                <div className="flex items-center space-x-1">
                                   <Clock className="w-4 h-4" />
                                   <span>{todo.estimated_duration}m</span>
                                 </div>
@@ -565,13 +561,13 @@ export default function TasksPage() {
                               onClick={() => startEditing(todo)}
                               className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors"
                             >
-                              <Edit3 className="w-4 h-4 text-gray-400 hover:text-white transition-colors" />
+                              <Edit3 className="w-4 h-4 text-gray-400" />
                             </button>
                             <button
                               onClick={() => deleteTodo(todo.id)}
                               className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
                             >
-                              <Trash2 className="w-4 h-4 text-red-400 hover:text-red-300 transition-colors" />
+                              <Trash2 className="w-4 h-4 text-red-400" />
                             </button>
                           </div>
                         </div>
@@ -584,21 +580,19 @@ export default function TasksPage() {
           </div>
 
           {/* Add Task Form - Mobile Collapsible */}
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 hover:bg-gray-800/50 transition-all duration-300">
+          <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50">
             <button
               onClick={() => setIsAddTaskExpanded(!isAddTaskExpanded)}
-              className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-800/30 transition-colors rounded-2xl group"
+              className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-800/30 transition-colors rounded-2xl"
             >
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-[#6E86FF]/20 to-[#FF6BBA]/20 rounded-lg flex items-center justify-center group-hover:from-[#6E86FF]/30 group-hover:to-[#FF6BBA]/30 transition-all">
-                  <Plus className="w-5 h-5 text-[#6E86FF] group-hover:scale-110 transition-transform" />
-                </div>
-                <h2 className="text-xl font-semibold text-white group-hover:text-white/90 transition-colors">Add New Task</h2>
+                <Plus className="w-5 h-5 text-[#6E86FF]" />
+                <h2 className="text-xl font-semibold text-white">Add New Task</h2>
               </div>
               {isAddTaskExpanded ? (
-                <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                <ChevronUp className="w-5 h-5 text-gray-400" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                <ChevronDown className="w-5 h-5 text-gray-400" />
               )}
             </button>
             
@@ -623,8 +617,8 @@ export default function TasksPage() {
                     onChange={(e) => setNewTask({...newTask, isSpiritual: e.target.checked})}
                     className="w-4 h-4 text-amber-500 bg-gray-800 border-gray-600 rounded focus:ring-amber-500"
                   />
-                  <label htmlFor="spiritual-mobile" className="text-sm text-gray-300 flex items-center group">
-                    <Star className="w-4 h-4 text-amber-500 mr-1 group-hover:scale-110 transition-transform" />
+                  <label htmlFor="spiritual-mobile" className="text-sm text-gray-300 flex items-center">
+                    <Star className="w-4 h-4 text-amber-500 mr-1" />
                     Spiritual/Gratitude Task (+25 pts)
                   </label>
                 </div>
@@ -972,7 +966,7 @@ export default function TasksPage() {
                                 
                                 {todo.show_gratitude && (
                                   <div className="flex items-center space-x-1">
-                                    <Star className="w-4 h-4 text-amber-400 animate-pulse" />
+                                    <Star className="w-4 h-4 text-amber-400" />
                                     <span className="text-xs text-amber-400 font-medium">+25 pts</span>
                                   </div>
                                 )}
@@ -1030,4 +1024,4 @@ export default function TasksPage() {
       </div>
     </div>
   );
-} 
+}

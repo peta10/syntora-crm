@@ -10,6 +10,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Syntora Todo - Personal Task Manager",
         "width": 1200,
         "height": 800,
@@ -19,7 +20,11 @@
         "resizable": true,
         "maximizable": true,
         "minimizable": true,
-        "closable": true
+        "closable": true,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": false
       }
     ],
     "security": {
@@ -31,6 +36,24 @@
     "category": "Productivity",
     "copyright": "© 2025 Syntora",
     "shortDescription": "Personal task manager with spiritual focus",
-    "longDescription": "A beautiful todo application that integrates with your daily reflection system"
+    "longDescription": "A beautiful todo application that integrates with your daily reflection system",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "publisher": "Syntora",
+    "resources": [],
+    "targets": "all",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "plugins": {
+    "notification": true
   }
 }
