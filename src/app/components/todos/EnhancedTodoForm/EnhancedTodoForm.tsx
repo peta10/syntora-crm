@@ -27,12 +27,7 @@ const EnhancedTodoForm: React.FC = () => {
       priority,
       category: category || undefined,
       due_date: dueDate || undefined,
-      estimated_duration: estimatedDuration || undefined,
-      tags: [],
-      description: undefined,
-      from_reflection: false,
-      reflection_date: undefined,
-      order: undefined
+      estimated_duration: estimatedDuration || undefined
     };
 
     await addTodo(todo);

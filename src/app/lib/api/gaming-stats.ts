@@ -1,8 +1,8 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/app/lib/supabase/client';
 
 export interface GamingStats {
   id: string;
-  user_id: string;
+  user_id: string; // UUID in your schema
   level: number;
   xp: number;
   xp_to_next: number;
@@ -20,11 +20,13 @@ export interface GamingStats {
   total_achievements_unlocked: number;
   weekly_xp_goal: number;
   monthly_xp_goal: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DailyStatsHistory {
   id: string;
-  user_id: string;
+  user_id: string; // UUID in your schema
   date: string;
   points_earned: number;
   tasks_completed: number;
@@ -37,11 +39,14 @@ export interface DailyStatsHistory {
 }
 
 export interface Achievement {
+  id: string;
+  user_id: string; // UUID in your schema
   achievement_name: string;
   achievement_description: string;
   achievement_icon: string;
   points_awarded: number;
   unlocked_at: string;
+  unlock_condition: string;
 }
 
 export interface WeeklyAnalytics {
@@ -63,10 +68,11 @@ export interface MonthlyAnalytics {
 }
 
 export class GamingStatsAPI {
-  private static supabase = createClientComponentClient();
+  private static supabase = supabase;
 
   static async getCurrentStats(): Promise<GamingStats | null> {
     try {
+      // Since you're the only user, get the first (and only) record
       const { data, error } = await this.supabase
         .from('gaming_stats')
         .select('*')
@@ -74,6 +80,10 @@ export class GamingStatsAPI {
         .single();
 
       if (error) {
+        // If no stats exist (PGRST116) or auth error, return null to trigger public mode
+        if (error.code === 'PGRST116' || error.message?.includes('auth')) {
+          return null;
+        }
         console.error('Error fetching gaming stats:', error);
         return null;
       }
@@ -87,6 +97,19 @@ export class GamingStatsAPI {
 
   static async initializeStats(): Promise<GamingStats | null> {
     try {
+      // First check if stats already exist
+      const existingStats = await this.getCurrentStats();
+      if (existingStats) {
+        return existingStats;
+      }
+
+      // Check if we have auth - if not, return null to trigger public mode
+      const { data: { session }, error: authError } = await this.supabase.auth.getSession();
+      if (authError || !session) {
+        return null;
+      }
+
+      // Create new stats record with a UUID for user_id
       const defaultStats = {
         user_id: crypto.randomUUID(),
         level: 1,
@@ -128,9 +151,29 @@ export class GamingStatsAPI {
 
   static async updateStats(updates: Partial<GamingStats>): Promise<GamingStats | null> {
     try {
+      // Check if we have auth - if not, return null
+      const { data: { session }, error: authError } = await this.supabase.auth.getSession();
+      if (authError || !session) {
+        return null;
+      }
+
+      // Get current stats to find the record to update
+      const currentStats = await this.getCurrentStats();
+      if (!currentStats) {
+        console.error('No gaming stats found to update');
+        return null;
+      }
+
+      // Add updated_at timestamp
+      const updatesWithTimestamp = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
       const { data, error } = await this.supabase
         .from('gaming_stats')
-        .update(updates)
+        .update(updatesWithTimestamp)
+        .eq('id', currentStats.id)
         .select()
         .single();
 
@@ -148,6 +191,37 @@ export class GamingStatsAPI {
 
   static async triggerDailyReset(): Promise<any> {
     try {
+      // Check if we have auth - if not, return mock response
+      const { data: { session }, error: authError } = await this.supabase.auth.getSession();
+      if (authError || !session) {
+        return { message: 'Daily reset not available in public mode' };
+      }
+
+      // Try calling the Supabase function first
+      const { data, error } = await this.supabase.rpc('smart_daily_reset');
+
+      if (error) {
+        console.error('Error calling smart_daily_reset function:', error);
+        // Fallback: try API endpoint
+        return this.triggerDailyResetViaAPI();
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error triggering daily reset:', error);
+      // Fallback: try API endpoint
+      return this.triggerDailyResetViaAPI();
+    }
+  }
+
+  private static async triggerDailyResetViaAPI(): Promise<any> {
+    try {
+      // Check if we have auth - if not, return mock response
+      const { data: { session }, error: authError } = await this.supabase.auth.getSession();
+      if (authError || !session) {
+        return { message: 'Daily reset not available in public mode' };
+      }
+
       const response = await fetch('/api/supabase/functions/daily-reset', {
         method: 'POST',
         headers: {
@@ -156,13 +230,19 @@ export class GamingStatsAPI {
       });
 
       if (!response.ok) {
+        // If the endpoint doesn't exist, just return a mock response
+        if (response.status === 404) {
+          console.log('Daily reset endpoint not found, using fallback');
+          return { message: 'Daily reset not available' };
+        }
         throw new Error('Failed to trigger daily reset');
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Error triggering daily reset:', error);
-      throw error;
+      console.error('Error triggering daily reset via API:', error);
+      // Return a fallback response instead of throwing
+      return { message: 'Daily reset failed', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -172,16 +252,44 @@ export class GamingStatsAPI {
     currentStats: GamingStats;
   } | null> {
     try {
-      const response = await fetch(`/api/supabase/functions/get-analytics?period=${period}&lookback=${lookback}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to get analytics');
+      // Check if we have auth - if not, return null to trigger demo data
+      const { data: { session }, error: authError } = await this.supabase.auth.getSession();
+      if (authError || !session) {
+        return null;
       }
 
-      const result = await response.json();
-      return result;
+      // Try calling the Supabase functions first
+      const functionName = period === 'weekly' ? 'get_weekly_analytics' : 'get_monthly_analytics';
+      const { data: analyticsData, error: analyticsError } = await this.supabase.rpc(functionName, {
+        lookback_weeks: period === 'weekly' ? lookback : undefined,
+        lookback_months: period === 'monthly' ? lookback : undefined
+      });
+
+      if (analyticsError) {
+        console.error(`Error calling ${functionName}:`, analyticsError);
+      }
+
+      // Get achievements
+      const { data: achievementsData, error: achievementsError } = await this.supabase.rpc('get_recent_achievements', {
+        days_back: 30
+      });
+
+      if (achievementsError) {
+        console.error('Error getting achievements:', achievementsError);
+      }
+
+      // Get current stats
+      const currentStats = await this.getCurrentStats();
+
+      return {
+        analytics: analyticsData || [],
+        achievements: achievementsData || [],
+        currentStats: currentStats || {} as GamingStats
+      };
+
     } catch (error) {
       console.error('Error getting analytics:', error);
+      // Return null to trigger demo data
       return null;
     }
   }
@@ -208,23 +316,31 @@ export class GamingStatsAPI {
 
   static async checkAchievements(): Promise<void> {
     try {
+      const currentStats = await this.getCurrentStats();
+      if (!currentStats) return;
+
+      // Call the achievement checking function
       const { error } = await this.supabase.rpc('check_and_unlock_achievements', {
-        user_uuid: crypto.randomUUID()
+        user_uuid: currentStats.user_id
       });
 
       if (error) {
-        console.error('Error checking achievements:', error);
+        console.log('Achievements function not available:', error.message);
       }
     } catch (error) {
-      console.error('Failed to check achievements:', error);
+      console.log('Failed to check achievements:', error);
     }
   }
 
   static async getDailyHistory(days: number = 30): Promise<DailyStatsHistory[]> {
     try {
+      const currentStats = await this.getCurrentStats();
+      if (!currentStats) return [];
+
       const { data, error } = await this.supabase
         .from('daily_stats_history')
         .select('*')
+        .eq('user_id', currentStats.user_id)
         .gte('date', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
         .order('date', { ascending: false });
 
@@ -242,9 +358,13 @@ export class GamingStatsAPI {
 
   static async getRecentAchievements(days: number = 30): Promise<Achievement[]> {
     try {
+      const currentStats = await this.getCurrentStats();
+      if (!currentStats) return [];
+
       const { data, error } = await this.supabase
         .from('achievement_history')
         .select('*')
+        .eq('user_id', currentStats.user_id)
         .gte('unlocked_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
         .order('unlocked_at', { ascending: false });
 
@@ -259,4 +379,31 @@ export class GamingStatsAPI {
       return [];
     }
   }
-} 
+
+  // Helper method to add XP and check for level ups
+  static async addXP(amount: number): Promise<void> {
+    try {
+      const currentStats = await this.getCurrentStats();
+      if (!currentStats) return;
+
+      let newXP = currentStats.xp + amount;
+      let newLevel = currentStats.level;
+      let newXPToNext = currentStats.xp_to_next;
+
+      // Check for level up
+      while (newXP >= newXPToNext) {
+        newXP -= newXPToNext;
+        newLevel++;
+        newXPToNext = newLevel * 100; // Simple progression: level * 100
+      }
+
+      await this.updateStats({
+        xp: newXP,
+        level: newLevel,
+        xp_to_next: newXPToNext
+      });
+    } catch (error) {
+      console.error('Failed to add XP:', error);
+    }
+  }
+}

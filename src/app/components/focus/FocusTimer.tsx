@@ -169,9 +169,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
     for (const taskId of completedTasks) {
       if (onUpdateTask) {
         await onUpdateTask(taskId, { 
-          completed: true, 
-          focus_session_id: `session_${Date.now()}`,
-          actual_duration: session.actual_duration 
+          completed: true
         });
       }
     }

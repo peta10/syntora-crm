@@ -166,12 +166,7 @@ export default function TasksPage() {
         priority: newTask.priority,
         category: newTask.category || undefined,
         due_date: newTask.dueDate || undefined,
-        estimated_duration: newTask.duration ? parseInt(newTask.duration) : undefined,
-        tags: [],
-        description: undefined,
-        from_reflection: false,
-        reflection_date: undefined,
-        order: undefined
+        estimated_duration: newTask.duration ? parseInt(newTask.duration) : undefined
       };
       
       await addTodo(todo);

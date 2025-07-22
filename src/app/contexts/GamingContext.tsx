@@ -69,6 +69,7 @@ interface GamingState {
   monthlyXpGoal: number;
   loading: boolean;
   error: string | null;
+  isPublicMode: boolean;
 }
 
 interface GamingContextType extends GamingState {
@@ -130,6 +131,7 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
     monthlyXpGoal: 2000,
     loading: true,
     error: null,
+    isPublicMode: false
   });
 
   // Initialize sound engine
@@ -149,26 +151,49 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
   // Load gaming state from Supabase
   useEffect(() => {
     const loadGamingStats = async () => {
-      let stats = await GamingStatsAPI.getCurrentStats();
-      
-      if (!stats) {
-        stats = await GamingStatsAPI.initializeStats();
-      }
+      try {
+        let stats = await GamingStatsAPI.getCurrentStats();
+        
+        if (!stats) {
+          // If no stats found, try initializing
+          stats = await GamingStatsAPI.initializeStats();
+          
+          // If still no stats, switch to public mode
+          if (!stats) {
+            setGamingState(prev => ({
+              ...prev,
+              loading: false,
+              isPublicMode: true
+            }));
+            return;
+          }
+        }
 
-      if (stats) {
+        if (stats) {
+          setGamingState(prev => ({
+            ...prev,
+            level: stats.level,
+            xp: stats.xp,
+            xpToNext: stats.xp_to_next,
+            todayPoints: stats.today_points,
+            streakCount: stats.streak_count,
+            combo: stats.combo,
+            allDayComplete: stats.all_day_complete,
+            achievements: stats.achievements,
+            soundEnabled: stats.sound_enabled,
+            volume: stats.volume,
+            animationsEnabled: stats.animations_enabled,
+            loading: false,
+            isPublicMode: false
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading gaming stats:', err);
+        // Switch to public mode on error
         setGamingState(prev => ({
           ...prev,
-          level: stats.level,
-          xp: stats.xp,
-          xpToNext: stats.xp_to_next,
-          todayPoints: stats.today_points,
-          streakCount: stats.streak_count,
-          combo: stats.combo,
-          allDayComplete: stats.all_day_complete,
-          achievements: stats.achievements,
-          soundEnabled: stats.sound_enabled,
-          volume: stats.volume,
-          animationsEnabled: stats.animations_enabled,
+          loading: false,
+          isPublicMode: true
         }));
       }
     };
@@ -178,6 +203,9 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
 
   // Save gaming state to Supabase whenever it changes
   useEffect(() => {
+    // Don't save if in public mode
+    if (gamingState.isPublicMode) return;
+
     const saveGamingStats = async () => {
       await GamingStatsAPI.updateStats({
         level: gamingState.level,
@@ -198,7 +226,7 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
   }, [gamingState.level, gamingState.xp, gamingState.xpToNext, gamingState.todayPoints, 
       gamingState.streakCount, gamingState.combo, gamingState.allDayComplete, 
       gamingState.achievements, gamingState.soundEnabled, gamingState.volume, 
-      gamingState.animationsEnabled]);
+      gamingState.animationsEnabled, gamingState.isPublicMode]);
 
   // Check and reset daily stats if needed
   useEffect(() => {
@@ -413,6 +441,16 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
       
       if (!stats) {
         stats = await GamingStatsAPI.initializeStats();
+        
+        // If still no stats, switch to public mode
+        if (!stats) {
+          setGamingState(prev => ({
+            ...prev,
+            loading: false,
+            isPublicMode: true
+          }));
+          return;
+        }
       }
       
       if (stats) {
@@ -435,6 +473,7 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
           weeklyXpGoal: stats.weekly_xp_goal,
           monthlyXpGoal: stats.monthly_xp_goal,
           loading: false,
+          isPublicMode: false
         }));
       }
     } catch (err) {
@@ -442,7 +481,8 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
       setGamingState(prev => ({
         ...prev,
         loading: false,
-        error: 'Failed to load gaming stats'
+        error: 'Failed to load gaming stats',
+        isPublicMode: true
       }));
     }
   };
@@ -465,6 +505,51 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
 
   const getAnalytics = async (period: 'weekly' | 'monthly' = 'weekly', lookback: number = 12) => {
     try {
+      // If in public mode, return demo data
+      if (gamingState.isPublicMode) {
+        return {
+          analytics: period === 'weekly' ? [
+            {
+              week_start: '2024-01-01',
+              total_points: 500,
+              total_tasks: 20,
+              average_productivity: 85,
+              days_active: 5,
+              week_number: 1
+            },
+            {
+              week_start: '2024-01-08',
+              total_points: 750,
+              total_tasks: 30,
+              average_productivity: 90,
+              days_active: 6,
+              week_number: 2
+            }
+          ] : [
+            {
+              month_start: '2024-01-01',
+              total_points: 2000,
+              total_tasks: 80,
+              average_productivity: 88,
+              days_active: 22,
+              best_day_points: 150
+            }
+          ],
+          achievements: [
+            {
+              id: 'demo1',
+              achievement_name: 'Getting Started',
+              achievement_description: 'Complete your first task!',
+              achievement_icon: '🎯',
+              points_awarded: 50,
+              unlocked_at: new Date().toISOString(),
+              unlock_condition: 'Complete first task'
+            }
+          ],
+          currentStats: gamingState
+        };
+      }
+
       return await GamingStatsAPI.getAnalytics(period, lookback);
     } catch (err) {
       console.error('Error getting analytics:', err);

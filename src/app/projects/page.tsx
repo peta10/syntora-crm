@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Project, Todo } from '@/app/types/todo';
 import { projectsService } from '@/app/lib/supabase/projects';
 import { ProjectManager } from '@/app/components/projects/ProjectManager';
+import Image from 'next/image';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -40,7 +41,7 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error('Error creating project:', error);
       setError(error instanceof Error ? error.message : 'Failed to create project');
-      throw error; // Re-throw to let the dialog handle it
+      throw error;
     }
   };
 
@@ -74,46 +75,43 @@ export default function ProjectsPage() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Projects</h1>
-        <p className="text-gray-400">Manage your projects and track progress</p>
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-          <div className="flex items-center justify-between">
-            <p className="text-red-400">{error}</p>
+    <div className="min-h-screen bg-[#0B0F1A] text-white">
+      <div className="container mx-auto px-4">
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-red-400">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-400 hover:text-red-300"
+              >
+                ✕
+              </button>
+            </div>
             <button
-              onClick={() => setError(null)}
-              className="text-red-400 hover:text-red-300"
+              onClick={loadProjects}
+              className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
             >
-              ✕
+              Retry
             </button>
           </div>
-          <button
-            onClick={loadProjects}
-            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+        )}
 
-      {loading ? (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
-      ) : (
-        <ProjectManager
-          projects={projects}
-          todos={todos}
-          onCreateProject={handleCreateProject}
-          onUpdateProject={handleUpdateProject}
-          onDeleteProject={handleDeleteProject}
-          loading={loading}
-        />
-      )}
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : (
+          <ProjectManager
+            projects={projects}
+            todos={todos}
+            onCreateProject={handleCreateProject}
+            onUpdateProject={handleUpdateProject}
+            onDeleteProject={handleDeleteProject}
+            loading={loading}
+          />
+        )}
+      </div>
     </div>
   );
 } 

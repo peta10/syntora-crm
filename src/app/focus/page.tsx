@@ -15,8 +15,8 @@ export default function FocusPage() {
     // Update tasks that were worked on during the session
     for (const taskId of session.task_ids) {
       await updateTodo(taskId, {
-        actual_duration: session.actual_duration,
-        focus_session_id: `session_${Date.now()}`
+        // Mark as completed if session was completed
+        completed: session.completed
       });
     }
   };

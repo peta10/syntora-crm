@@ -1,7 +1,7 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .setup(|app| {
+    .setup(|_app| {
       // Setup code can go here if needed
       Ok(())
     })

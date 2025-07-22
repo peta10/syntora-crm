@@ -2,36 +2,18 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  List, 
-  Grid3X3, 
-  Search, 
-  Filter,
-  SortAsc,
-  SortDesc,
-  Calendar,
-  Target,
-  MoreHorizontal,
-  Trash2,
-  Edit,
-  Copy,
-  Eye,
-  EyeOff,
-  Plus,
-  BarChart2,
-  Users,
-  Folder,
-  Play,
-  Pause,
-  Clock,
-  CheckCircle
+  List, Grid3X3, Search, Filter, Target, 
+  Users, Plus, Calendar, Clock, CheckCircle2,
+  Star, Briefcase
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Project, Todo } from '@/app/types/todo';
 import CreateProjectDialog from './CreateProjectDialog';
 import EditProjectDialog from './EditProjectDialog';
+import { ProjectCard } from './ProjectCard';
+import { ProjectDetails } from './ProjectDetails';
 
 interface ProjectManagerProps {
   projects: Project[];
@@ -61,7 +43,8 @@ export function ProjectManager({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [showProjectDetails, setShowProjectDetails] = useState(false);
 
   // Get unique categories from projects
   const categories = useMemo(() => {
@@ -76,8 +59,8 @@ export function ProjectManager({
   const filteredProjects = useMemo(() => {
     let filtered = [...projects];
 
-    // Apply search filter
-    if (searchQuery) {
+    // Apply search
+    if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p => 
         p.title.toLowerCase().includes(query) ||
@@ -100,10 +83,10 @@ export function ProjectManager({
     // Apply sorting
     switch (sortMode) {
       case 'newest':
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        filtered.sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
         break;
       case 'oldest':
-        filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        filtered.sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
         break;
       case 'alphabetical':
         filtered.sort((a, b) => a.title.localeCompare(b.title));
@@ -116,155 +99,95 @@ export function ProjectManager({
     return filtered;
   }, [projects, searchQuery, filterMode, selectedCategory, sortMode]);
 
-  const handleCreateProjectSubmit = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
-    await onCreateProject(projectData);
-  };
-
-  const handleUpdateProjectSubmit = async (id: string, updates: Partial<Project>) => {
-    await onUpdateProject(id, updates);
-  };
-
-  const ProjectCard = ({ project }: { project: Project }) => {
-    const isExpanded = expandedProjects.has(project.id);
-    const projectTodos = todos.filter(t => t.project_id === project.id);
-    const completedTodos = projectTodos.filter(t => t.completed);
-    const progress = projectTodos.length > 0 
-      ? (completedTodos.length / projectTodos.length) * 100 
-      : 0;
-
-    return (
-      <Card className={`bg-gray-800/50 border-gray-700/50 backdrop-blur-sm transition-all duration-200 ${
-        viewMode === 'grid' ? 'hover:scale-[1.02]' : ''
-      }`}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="flex items-center space-x-2">
-            <div 
-              className="w-8 h-8 rounded flex items-center justify-center text-lg"
-              style={{ backgroundColor: project.color + '20', color: project.color }}
-            >
-              {project.icon}
-            </div>
-            <CardTitle className="text-lg font-semibold text-white">
-              {project.title}
-            </CardTitle>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-400 hover:text-white"
-              onClick={() => setEditingProject(project)}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-400 hover:text-red-400"
-              onClick={() => onDeleteProject(project.id)}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {project.description && (
-            <CardDescription className="text-gray-400 mt-1">
-              {project.description}
-            </CardDescription>
-          )}
-          
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center space-x-2">
-                <Clock className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-300">
-                  {project.estimated_hours ? `${project.estimated_hours}h estimated` : 'No time estimate'}
-                </span>
-              </div>
-              <Badge 
-                variant="outline" 
-                className={`
-                  ${project.status === 'active' ? 'border-green-500/30 text-green-400' : ''}
-                  ${project.status === 'completed' ? 'border-blue-500/30 text-blue-400' : ''}
-                  ${project.status === 'on_hold' ? 'border-yellow-500/30 text-yellow-400' : ''}
-                  ${project.status === 'archived' ? 'border-gray-500/30 text-gray-400' : ''}
-                `}
-              >
-                {project.status}
-              </Badge>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">Progress</span>
-                <span className="text-gray-300">{Math.round(progress)}%</span>
-              </div>
-              <Progress value={progress} className="h-1" />
-            </div>
-
-            {project.category && (
-              <div className="flex items-center space-x-2 text-sm">
-                <Folder className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-300">{project.category}</span>
-              </div>
-            )}
-
-            {project.tags && project.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {project.tags.map(tag => (
-                  <Badge 
-                    key={tag} 
-                    variant="secondary"
-                    className="bg-gray-700/50 text-gray-300"
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+  const getProjectStats = () => {
+    const totalProjects = projects.length;
+    const activeProjects = projects.filter(p => p.status === 'active').length;
+    const completedProjects = projects.filter(p => p.status === 'completed').length;
+    const avgProgress = Math.round(
+      projects.reduce((sum, p) => sum + p.progress_percentage, 0) / (projects.length || 1)
     );
+
+    return { totalProjects, activeProjects, completedProjects, avgProgress };
   };
+
+  const stats = getProjectStats();
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-            Projects
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-2">
+            Projects Dashboard
           </h1>
-          <p className="text-gray-400 mt-1">Manage your projects and track progress</p>
+          <p className="text-gray-400">
+            Manage your projects and track progress
+          </p>
         </div>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white hover:shadow-lg hover:scale-105 transition-all duration-200"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Project
-        </Button>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-gray-900/30 backdrop-blur-sm border border-gray-700/30 rounded-lg p-4">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:border-[#6E86FF] focus:outline-none"
-          />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-xl p-4 border border-blue-500/30">
+          <div className="flex items-center space-x-3">
+            <Briefcase className="w-8 h-8 text-blue-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{stats.totalProjects}</div>
+              <div className="text-sm text-blue-300">Total Projects</div>
+              <div className="text-xs text-gray-400">All projects</div>
+            </div>
+          </div>
         </div>
+        
+        <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl p-4 border border-green-500/30">
+          <div className="flex items-center space-x-3">
+            <Target className="w-8 h-8 text-green-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{stats.activeProjects}</div>
+              <div className="text-sm text-green-300">Active Projects</div>
+              <div className="text-xs text-gray-400">In progress</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl p-4 border border-purple-500/30">
+          <div className="flex items-center space-x-3">
+            <CheckCircle2 className="w-8 h-8 text-purple-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{stats.completedProjects}</div>
+              <div className="text-sm text-purple-300">Completed</div>
+              <div className="text-xs text-gray-400">Finished projects</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/20 rounded-xl p-4 border border-orange-500/30">
+          <div className="flex items-center space-x-3">
+            <Star className="w-8 h-8 text-orange-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{stats.avgProgress}%</div>
+              <div className="text-sm text-orange-300">Avg Progress</div>
+              <div className="text-xs text-gray-400">Overall completion</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          {/* View Toggle */}
+      {/* Actions Bar */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search projects by name, description, or tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-gray-800/50 border-gray-700/50 text-white"
+            />
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
           <div className="flex rounded-lg overflow-hidden border border-gray-700">
             <button
               onClick={() => setViewMode('list')}
@@ -287,45 +210,53 @@ export function ProjectManager({
               <Grid3X3 className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Sort */}
-          <select
-            value={sortMode}
-            onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
+          
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white"
           >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="alphabetical">Alphabetical</option>
-            <option value="progress">Progress</option>
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={filterMode}
-            onChange={(e) => setFilterMode(e.target.value as FilterMode)}
-            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
-            <option value="on_hold">On Hold</option>
-            <option value="archived">Archived</option>
-          </select>
-
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
-          >
-            {categories.map(category => (
-              <option key={category} value={category}>
-                {category === 'all' ? 'All Categories' : category}
-              </option>
-            ))}
-          </select>
+            <Plus className="w-4 h-4 mr-2" />
+            New Project
+          </Button>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center space-x-4 mb-6">
+        <select
+          value={filterMode}
+          onChange={(e) => setFilterMode(e.target.value as FilterMode)}
+          className="px-3 py-2 bg-gray-800/50 border-gray-700/50 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="on_hold">On Hold</option>
+          <option value="archived">Archived</option>
+        </select>
+
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="px-3 py-2 bg-gray-800/50 border-gray-700/50 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
+        >
+          {categories.map(category => (
+            <option key={category} value={category}>
+              {category === 'all' ? 'All Categories' : category}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={sortMode}
+          onChange={(e) => setSortMode(e.target.value as SortMode)}
+          className="px-3 py-2 bg-gray-800/50 border-gray-700/50 rounded-lg text-gray-300 focus:outline-none focus:border-[#6E86FF]"
+        >
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="alphabetical">Alphabetical</option>
+          <option value="progress">Progress</option>
+        </select>
       </div>
 
       {/* Projects Grid/List */}
@@ -358,7 +289,21 @@ export function ProjectManager({
             : 'grid-cols-1'
         }`}>
           {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              viewMode={viewMode}
+              onClick={() => {
+                setSelectedProject(project);
+                setShowProjectDetails(true);
+              }}
+              onEdit={() => {
+                setEditingProject(project);
+                setShowProjectDetails(false);
+              }}
+              onDelete={() => onDeleteProject(project.id)}
+              onStatusChange={(status) => onUpdateProject(project.id, { status })}
+            />
           ))}
         </div>
       )}
@@ -367,7 +312,7 @@ export function ProjectManager({
       <CreateProjectDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onCreateProject={handleCreateProjectSubmit}
+        onCreateProject={onCreateProject}
       />
 
       {editingProject && (
@@ -375,7 +320,24 @@ export function ProjectManager({
           project={editingProject}
           open={!!editingProject}
           onOpenChange={() => setEditingProject(null)}
-          onUpdateProject={handleUpdateProjectSubmit}
+          onUpdateProject={onUpdateProject}
+        />
+      )}
+
+      {selectedProject && (
+        <ProjectDetails
+          project={selectedProject}
+          isOpen={showProjectDetails}
+          onClose={() => {
+            setShowProjectDetails(false);
+            setSelectedProject(null);
+          }}
+          onEdit={() => {
+            setEditingProject(selectedProject);
+            setShowProjectDetails(false);
+          }}
+          onDelete={onDeleteProject}
+          onUpdateProject={onUpdateProject}
         />
       )}
     </div>

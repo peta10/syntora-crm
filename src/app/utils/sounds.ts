@@ -1,16 +1,50 @@
 export class SoundEngine {
   private static audioContext: AudioContext | null = null;
   private static gainNode: GainNode | null = null;
+  private static initialized: boolean = false;
+  private static userInteracted: boolean = false;
 
   static initialize(volume: number = 75) {
+    if (typeof window === 'undefined') return;
+    
+    // Set up user interaction listener
+    if (!this.userInteracted) {
+      this.setupUserInteractionListener();
+    }
+
     if (this.audioContext) {
-      // If context exists but is suspended, resume it
+      // If context exists but is suspended, try to resume it
       if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume();
+        this.resumeContext();
       }
       this.setVolume(volume);
       return;
     }
+
+    if (this.userInteracted) {
+      this.createAudioContext(volume);
+    }
+  }
+
+  private static setupUserInteractionListener() {
+    if (typeof window === 'undefined') return;
+
+    const enableAudio = () => {
+      this.userInteracted = true;
+      this.createAudioContext();
+      // Remove listeners after first interaction
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('touchstart', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
+    };
+
+    document.addEventListener('click', enableAudio, { once: true });
+    document.addEventListener('touchstart', enableAudio, { once: true });
+    document.addEventListener('keydown', enableAudio, { once: true });
+  }
+
+  private static createAudioContext(volume: number = 75) {
+    if (typeof window === 'undefined') return;
 
     try {
       // @ts-expect-error - Safari support
@@ -18,8 +52,19 @@ export class SoundEngine {
       this.gainNode = this.audioContext.createGain();
       this.gainNode.connect(this.audioContext.destination);
       this.setVolume(volume);
+      this.initialized = true;
     } catch (error) {
       console.log('Audio not supported');
+    }
+  }
+
+  private static async resumeContext() {
+    if (!this.audioContext) return;
+
+    try {
+      await this.audioContext.resume();
+    } catch (error) {
+      console.log('Failed to resume audio context:', error);
     }
   }
 
@@ -37,54 +82,62 @@ export class SoundEngine {
     sweep?: { endFreq: number; };
     volume?: number; // Allow per-sound volume adjustment
   }) {
-    if (!this.audioContext || !this.gainNode) return;
+    if (!this.audioContext || !this.gainNode || !this.userInteracted) return;
 
-    // Resume context if suspended
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+    try {
+      // Resume context if suspended
+      if (this.audioContext.state === 'suspended') {
+        await this.resumeContext();
+      }
+
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+      const baseVolume = options.volume || 1;
+
+      oscillator.type = options.type;
+      oscillator.frequency.setValueAtTime(options.frequency, this.audioContext.currentTime);
+
+      if (options.sweep) {
+        oscillator.frequency.exponentialRampToValueAtTime(
+          options.sweep.endFreq,
+          this.audioContext.currentTime + options.duration
+        );
+      }
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.gainNode);
+
+      if (options.fadeOut) {
+        gainNode.gain.setValueAtTime(0.3 * baseVolume, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + options.duration);
+      } else {
+        gainNode.gain.setValueAtTime(baseVolume, this.audioContext.currentTime);
+      }
+
+      oscillator.start(this.audioContext.currentTime);
+      oscillator.stop(this.audioContext.currentTime + options.duration);
+
+      // Clean up
+      return new Promise<void>((resolve) => {
+        oscillator.onended = () => {
+          try {
+            oscillator.disconnect();
+            gainNode.disconnect();
+          } catch (e) {
+            // Ignore disconnection errors
+          }
+          resolve();
+        };
+      });
+    } catch (error) {
+      console.log('Error playing sound:', error);
     }
-
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    const baseVolume = options.volume || 1;
-
-    oscillator.type = options.type;
-    oscillator.frequency.setValueAtTime(options.frequency, this.audioContext.currentTime);
-
-    if (options.sweep) {
-      oscillator.frequency.exponentialRampToValueAtTime(
-        options.sweep.endFreq,
-        this.audioContext.currentTime + options.duration
-      );
-    }
-
-    oscillator.connect(gainNode);
-    gainNode.connect(this.gainNode);
-
-    if (options.fadeOut) {
-      gainNode.gain.setValueAtTime(0.3 * baseVolume, this.audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + options.duration);
-    } else {
-      gainNode.gain.setValueAtTime(baseVolume, this.audioContext.currentTime);
-    }
-
-    oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + options.duration);
-
-    // Clean up
-    return new Promise<void>((resolve) => {
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        gainNode.disconnect();
-        resolve();
-      };
-    });
   }
 
   static async playTaskComplete() {
-    // Fortnite chest opening sequence
-    const time = this.audioContext?.currentTime || 0;
+    if (!this.userInteracted) return;
     
+    // Fortnite chest opening sequence
     // Initial "click" sound
     this.playOscillator({
       type: 'square',
@@ -104,20 +157,7 @@ export class SoundEngine {
       });
     }, 100);
 
-    // Magical sparkle sounds
-    const sparkleNotes = [1200, 1400, 1600, 1800];
-    sparkleNotes.forEach((freq, i) => {
-      setTimeout(() => {
-        this.playOscillator({
-          type: 'triangle',
-          frequency: freq,
-          duration: 0.15,
-          fadeOut: true
-        });
-      }, 200 + i * 50);
-    });
-
-    // Final "pop" with reverb
+    // Magical chime
     setTimeout(() => {
       this.playOscillator({
         type: 'sine',
@@ -125,226 +165,147 @@ export class SoundEngine {
         duration: 0.4,
         fadeOut: true
       });
-      this.playOscillator({
-        type: 'triangle',
-        frequency: 1200,
-        duration: 0.3,
-        fadeOut: true
-      });
-    }, 400);
-  }
-
-  static async playLevelUp() {
-    // Epic level up fanfare inspired by Final Fantasy
-    const fanfare = [
-      { freq: 196.00, // G3
-        duration: 0.2 },
-      { freq: 246.94, // B3
-        duration: 0.2 },
-      { freq: 293.66, // D4
-        duration: 0.3 },
-      { freq: 392.00, // G4
-        duration: 0.4 }
-    ];
-
-    fanfare.forEach((note, i) => {
-      setTimeout(() => {
-        // Main brass-like tone
-        this.playOscillator({
-          type: 'square',
-          frequency: note.freq,
-          duration: note.duration,
-          fadeOut: true
-        });
-
-        // Rich undertone
-        this.playOscillator({
-          type: 'sine',
-          frequency: note.freq / 2,
-          duration: note.duration,
-          fadeOut: true
-        });
-
-        // Shimmer overtone
-        if (i > 1) {
-          this.playOscillator({
-            type: 'triangle',
-            frequency: note.freq * 1.5,
-            duration: note.duration,
-            fadeOut: true
-          });
-        }
-      }, i * 150);
-    });
-  }
-
-  static async playCombo(count: number) {
-    // Deep, satisfying combo sound inspired by games like God of War
-    const baseFreq = 150 + (count * 20); // Keep the base frequency low
-    
-    // Deep impact
-    this.playOscillator({
-      type: 'sine',
-      frequency: baseFreq,
-      duration: 0.2,
-      fadeOut: true
-    });
-
-    // Power up sweep
-    setTimeout(() => {
-      this.playOscillator({
-        type: 'sine',
-        frequency: baseFreq * 1.5,
-        duration: 0.3,
-        sweep: { endFreq: baseFreq * 2 },
-        fadeOut: true
-      });
-    }, 100);
-
-    // Resonant bass
-    setTimeout(() => {
-      this.playOscillator({
-        type: 'triangle',
-        frequency: baseFreq / 2,
-        duration: 0.4,
-        fadeOut: true
-      });
-    }, 200);
-  }
-
-  static async playStreak() {
-    // Epic streak sound inspired by Halo shield recharge
-    const baseTones = [
-      { freq: 200, duration: 0.4 },
-      { freq: 300, duration: 0.3 },
-      { freq: 400, duration: 0.2 }
-    ];
-
-    baseTones.forEach((tone, i) => {
-      setTimeout(() => {
-        // Bass layer
-        this.playOscillator({
-          type: 'sine',
-          frequency: tone.freq,
-          duration: tone.duration,
-          sweep: { endFreq: tone.freq * 1.2 },
-          fadeOut: true
-        });
-
-        // Resonance layer
-        this.playOscillator({
-          type: 'triangle',
-          frequency: tone.freq * 1.5,
-          duration: tone.duration,
-          fadeOut: true
-        });
-      }, i * 150);
-    });
+    }, 300);
   }
 
   static async playSpiritual() {
-    // Zen-like meditation bowl sound
-    const frequencies = [
-      { freq: 196.0, // G3
-        duration: 0.8 },
-      { freq: 294.7, // D4
-        duration: 0.7 },
-      { freq: 392.0, // G4
-        duration: 0.6 }
+    if (!this.userInteracted) return;
+    
+    // Sacred bell sequence
+    const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5
+    
+    frequencies.forEach((freq, index) => {
+      setTimeout(() => {
+        this.playOscillator({
+          type: 'sine',
+          frequency: freq,
+          duration: 1.2,
+          fadeOut: true,
+          volume: 0.8
+        });
+      }, index * 300);
+    });
+  }
+
+  static async playLevelUp() {
+    if (!this.userInteracted) return;
+    
+    // Epic achievement fanfare
+    const melody = [
+      { freq: 261.63, dur: 0.2 }, // C4
+      { freq: 329.63, dur: 0.2 }, // E4
+      { freq: 392.00, dur: 0.2 }, // G4
+      { freq: 523.25, dur: 0.6 }  // C5
     ];
 
-    frequencies.forEach((tone, i) => {
+    melody.forEach((note, index) => {
       setTimeout(() => {
-        // Main tone
         this.playOscillator({
           type: 'sine',
-          frequency: tone.freq,
-          duration: tone.duration,
+          frequency: note.freq,
+          duration: note.dur,
           fadeOut: true
         });
+      }, index * 150);
+    });
+  }
 
-        // Harmonic overtone
-        this.playOscillator({
-          type: 'sine',
-          frequency: tone.freq * 1.5,
-          duration: tone.duration * 0.8,
-          fadeOut: true
-        });
-      }, i * 200);
+  static async playCombo(comboCount: number) {
+    if (!this.userInteracted) return;
+    
+    // Increasing pitch with combo
+    const baseFreq = 440;
+    const freq = baseFreq + (comboCount * 50);
+    
+    this.playOscillator({
+      type: 'sine',
+      frequency: freq,
+      duration: 0.3,
+      fadeOut: true
+    });
+  }
+
+  static async playStreak() {
+    if (!this.userInteracted) return;
+    
+    // Fire-like crackling sound
+    this.playOscillator({
+      type: 'sawtooth',
+      frequency: 150,
+      duration: 0.5,
+      sweep: { endFreq: 300 },
+      fadeOut: true
     });
   }
 
   static async playAchievement() {
-    // Epic orchestral achievement sound
-    const sequence = [
-      { freq: 130.81, // C3
-        duration: 0.4 },
-      { freq: 196.00, // G3
-        duration: 0.4 },
-      { freq: 261.63, // C4
-        duration: 0.6 }
+    if (!this.userInteracted) return;
+    
+    // Victory trumpet
+    const notes = [
+      { freq: 659.25, dur: 0.3 }, // E5
+      { freq: 783.99, dur: 0.3 }, // G5
+      { freq: 1046.50, dur: 0.6 } // C6
     ];
 
-    sequence.forEach((note, i) => {
+    notes.forEach((note, index) => {
       setTimeout(() => {
-        // Bass note
         this.playOscillator({
           type: 'sine',
           frequency: note.freq,
-          duration: note.duration,
+          duration: note.dur,
           fadeOut: true
         });
-
-        // Rich harmonics
-        this.playOscillator({
-          type: 'triangle',
-          frequency: note.freq * 2,
-          duration: note.duration,
-          fadeOut: true
-        });
-
-        // Shimmer effect
-        if (i === sequence.length - 1) {
-          this.playOscillator({
-            type: 'sine',
-            frequency: note.freq * 3,
-            duration: note.duration * 1.5,
-            fadeOut: true
-          });
-        }
-      }, i * 200);
+      }, index * 200);
     });
   }
 
   static async playPointsGain() {
-    // Satisfying coin collection sound
-    const metallic = [
-      { freq: 220, // A3
-        duration: 0.15 },
-      { freq: 277.18, // C#4
-        duration: 0.2 },
-      { freq: 329.63, // E4
-        duration: 0.25 }
-    ];
-
-    metallic.forEach((note, i) => {
-      setTimeout(() => {
-        // Metallic ping
-        this.playOscillator({
-          type: 'triangle',
-          frequency: note.freq,
-          duration: note.duration,
-          fadeOut: true
-        });
-
-        // Rich undertone
-        this.playOscillator({
-          type: 'sine',
-          frequency: note.freq / 2,
-          duration: note.duration,
-          fadeOut: true
-        });
-      }, i * 80);
+    if (!this.userInteracted) return;
+    
+    // Quick ascending notes
+    this.playOscillator({
+      type: 'sine',
+      frequency: 440,
+      duration: 0.2,
+      sweep: { endFreq: 880 },
+      fadeOut: true
     });
   }
-} 
+
+  static async playError() {
+    if (!this.userInteracted) return;
+    
+    // Low error tone
+    this.playOscillator({
+      type: 'square',
+      frequency: 200,
+      duration: 0.4,
+      fadeOut: true,
+      volume: 0.6
+    });
+  }
+
+  static async playSuccess() {
+    if (!this.userInteracted) return;
+    
+    // Pleasant success chime
+    this.playOscillator({
+      type: 'sine',
+      frequency: 800,
+      duration: 0.3,
+      fadeOut: true
+    });
+  }
+
+  // Public method to check if audio is ready
+  static isReady(): boolean {
+    return this.initialized && this.userInteracted && this.audioContext !== null;
+  }
+
+  // Public method to get audio context state
+  static getState(): string {
+    if (!this.audioContext) return 'not-initialized';
+    return this.audioContext.state;
+  }
+}

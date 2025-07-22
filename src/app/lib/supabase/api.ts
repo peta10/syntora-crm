@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase/client';
 
 export interface Todo {
   id: string;
@@ -62,10 +62,10 @@ const mapTodoFromDb = (dbTodo: DbTodo): Todo => ({
   category: dbTodo.category,
   tags: dbTodo.tags,
   description: dbTodo.description,
-  due_date: undefined, // Not available in current schema
+  due_date: dbTodo.date, // Map the date field to due_date
   estimated_duration: dbTodo.estimated_duration,
-  from_reflection: false, // Not available in current schema
-  reflection_date: undefined, // Not available in current schema
+  from_reflection: false,
+  reflection_date: undefined,
   order: dbTodo.sort_order,
 });
 
@@ -79,7 +79,7 @@ const mapTodoToDb = (todo: Omit<Todo, 'id' | 'created_at' | 'updated_at'>) => ({
   description: todo.description,
   estimated_duration: todo.estimated_duration,
   sort_order: todo.order || 0,
-  date: new Date().toISOString().split('T')[0], // Required field in daily_todos
+  date: todo.due_date || new Date().toISOString().split('T')[0], // Use provided due_date or today's date
 });
 
 const api = {

@@ -1,5 +1,5 @@
 // Desktop utilities for Tauri
-// Import types only
+// Import types only to avoid runtime issues
 import type { Window as TauriWindow } from '@tauri-apps/api/window';
 
 export interface NotificationOptions {
@@ -120,4 +120,20 @@ export function getDesktopManager(): DesktopManager {
     desktopManagerInstance = DesktopManager.getInstance();
   }
   return desktopManagerInstance;
-} 
+}
+
+// Export the desktopManager as well for compatibility
+export const desktopManager = {
+  init: async () => {
+    const manager = getDesktopManager();
+    return manager.init();
+  },
+  getInstance: () => getDesktopManager(),
+  isDesktopApp: () => getDesktopManager().isDesktopApp(),
+  canSendNotifications: () => getDesktopManager().canSendNotifications(),
+  showNotification: (options: NotificationOptions) => getDesktopManager().showNotification(options),
+  minimizeWindow: () => getDesktopManager().minimizeWindow(),
+  maximizeWindow: () => getDesktopManager().maximizeWindow(),
+  hideWindow: () => getDesktopManager().hideWindow(),
+  showWindow: () => getDesktopManager().showWindow()
+};

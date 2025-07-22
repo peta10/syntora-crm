@@ -7,7 +7,7 @@ interface EditProjectDialogProps {
   project: Project;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  onUpdateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
 }
 
 const PRESET_COLORS = [
@@ -24,7 +24,8 @@ const STATUS_OPTIONS = [
   { value: 'active', label: 'Active', color: 'text-green-400' },
   { value: 'completed', label: 'Completed', color: 'text-blue-400' },
   { value: 'on_hold', label: 'On Hold', color: 'text-yellow-400' },
-  { value: 'archived', label: 'Archived', color: 'text-gray-400' }
+  { value: 'archived', label: 'Archived', color: 'text-gray-400' },
+  { value: 'cancelled', label: 'Cancelled', color: 'text-red-400' }
 ];
 
 export default function EditProjectDialog({ project, open, onOpenChange, onUpdateProject }: EditProjectDialogProps) {
@@ -32,7 +33,7 @@ export default function EditProjectDialog({ project, open, onOpenChange, onUpdat
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('#6E86FF');
   const [icon, setIcon] = useState('🚀');
-  const [status, setStatus] = useState<'active' | 'completed' | 'on_hold' | 'archived'>('active');
+  const [status, setStatus] = useState<'active' | 'completed' | 'on_hold' | 'archived' | 'cancelled'>('active');
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
@@ -72,8 +73,11 @@ export default function EditProjectDialog({ project, open, onOpenChange, onUpdat
         actual_hours: actualHours ? parseFloat(actualHours) : undefined,
       };
 
-      await onUpdateProject(project.id, updates);
+      const updatedProject = await onUpdateProject(project.id, updates);
       onOpenChange(false);
+      // Optionally, you might want to update the project state in the parent component
+      // if the parent component manages the list of projects.
+      // For now, we just close the dialog.
     } catch (error) {
       console.error('Error updating project:', error);
     } finally {
@@ -289,7 +293,7 @@ export default function EditProjectDialog({ project, open, onOpenChange, onUpdat
                 </div>
                 <div>
                   <div className="text-lg font-bold text-white">
-                    {new Date(project.created_at).toLocaleDateString()}
+                    {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Unknown'}
                   </div>
                   <div className="text-xs text-gray-400">Created</div>
                 </div>

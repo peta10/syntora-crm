@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Volume2, VolumeX, Star, Zap, Settings, User, Palette, Gamepad2, Trophy, Flame, Sparkles, Save, RotateCcw, Bell, BellOff, Monitor, Moon, Sun, Activity, Target, Timer, Award, Play, Music } from 'lucide-react';
+import { Volume2, VolumeX, Star, Zap, Settings, User, Palette, Gamepad2, Trophy, Flame, Sparkles, Save, RotateCcw, Bell, BellOff, Monitor, Moon, Sun, Activity, Target, Timer, Award, Play, Music, LogIn, LogOut, Shield, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import { useGaming } from '@/app/contexts/GamingContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { SoundEngine } from '@/app/utils/sounds';
+import { useRouter } from 'next/navigation';
 
 interface ProductivitySettings {
   dailyGoal: number;
@@ -31,6 +33,8 @@ export default function SettingsPage() {
     animationsEnabled,
     updateSettings: updateGamingSettings,
   } = useGaming();
+  const { user, signOut, loading: authLoading } = useAuth();
+  const router = useRouter();
   
   const [productivitySettings, setProductivitySettings] = useState<ProductivitySettings>({
     dailyGoal: 5,
@@ -48,7 +52,7 @@ export default function SettingsPage() {
     theme: 'dark',
   });
 
-  const [activeTab, setActiveTab] = useState('gaming');
+  const [activeTab, setActiveTab] = useState('account');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [selectedSound, setSelectedSound] = useState<string | null>(null);
@@ -180,11 +184,29 @@ export default function SettingsPage() {
   }, []);
 
   const tabs = [
+    { id: 'account', label: 'Account', icon: User },
     { id: 'gaming', label: 'Gaming', icon: Gamepad2 },
     { id: 'productivity', label: 'Productivity', icon: Target },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      } else {
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  const handleSignIn = () => {
+    router.push('/login');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white overflow-hidden">
@@ -290,6 +312,106 @@ export default function SettingsPage() {
           <div className="lg:col-span-3">
             <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 hover:bg-gray-800/50 transition-all duration-300">
               <AnimatePresence mode="wait">
+                {/* Account Settings */}
+                {activeTab === 'account' && (
+                  <motion.div
+                    key="account"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
+                  >
+                    <div>
+                      <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+                        <User className="w-5 h-5 mr-2 text-[#6E86FF]" />
+                        Account & Authentication
+                      </h3>
+                    </div>
+
+                    {user ? (
+                      <div className="space-y-4">
+                        {/* User Info */}
+                        <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 hover:bg-gray-800/50 hover:border-gray-600/50 transition-all duration-200">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-[#6E86FF] to-[#FF6BBA] rounded-full flex items-center justify-center">
+                              <User className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-white">
+                                {user.user_metadata?.first_name && user.user_metadata?.last_name 
+                                  ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+                                  : 'User'}
+                              </h4>
+                              <p className="text-gray-400 text-sm">{user.email}</p>
+                              <p className="text-gray-500 text-xs">
+                                Signed in since {new Date(user.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                              <span className="text-green-400 text-sm">Active</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Account Actions */}
+                        <div className="space-y-3">
+                          <h4 className="text-lg font-medium text-white">Account Actions</h4>
+                          
+                          <button
+                            onClick={handleSignOut}
+                            disabled={authLoading}
+                            className="w-full flex items-center justify-center space-x-2 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <LogOut className="w-5 h-5" />
+                            <span>{authLoading ? 'Signing out...' : 'Sign Out'}</span>
+                          </button>
+                        </div>
+
+                        {/* Security Info */}
+                        <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30">
+                          <div className="flex items-center space-x-3 mb-3">
+                            <Shield className="w-5 h-5 text-green-400" />
+                            <h4 className="font-medium text-white">Security</h4>
+                          </div>
+                          <div className="space-y-2 text-sm text-gray-400">
+                            <div className="flex items-center justify-between">
+                              <span>Two-Factor Authentication</span>
+                              <span className="text-yellow-400">Not enabled</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span>Last sign-in</span>
+                              <span>{new Date(user.last_sign_in_at || '').toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span>Authentication method</span>
+                              <span className="capitalize">{user.app_metadata?.provider || 'email'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-24 h-24 bg-gradient-to-br from-[#6E86FF]/20 to-[#FF6BBA]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <Key className="w-12 h-12 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-white mb-2">Not signed in</h3>
+                        <p className="text-gray-400 mb-6">
+                          Sign in to access your personalized settings and sync your data across devices.
+                        </p>
+                        <button
+                          onClick={handleSignIn}
+                          className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center space-x-2 mx-auto"
+                        >
+                          <LogIn className="w-5 h-5" />
+                          <span>Sign In</span>
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
                 {/* Gaming Settings */}
                 {activeTab === 'gaming' && (
                   <motion.div

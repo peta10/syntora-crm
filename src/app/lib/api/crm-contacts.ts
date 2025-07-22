@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase/client';
 import {
   CrmContact,
   CrmDeal,
@@ -69,15 +69,14 @@ export class ContactsAPI {
       if (error) throw error;
 
       // Transform data to include computed fields
-      const transformedData = (data || []).map(contact => ({
+      const transformedData = (data || []).map((contact: any) => ({
         ...contact,
         totalDeals: contact.deals?.[0]?.count || 0,
         totalActivities: contact.activities?.[0]?.count || 0,
         totalInvoices: contact.invoices?.[0]?.count || 0,
         lastActivity: contact.lastActivity?.[0] || null,
-        // Calculate total revenue (would need to join with deal values)
         totalRevenue: 0 // TODO: Implement proper revenue calculation
-      }));
+      })) as ContactWithRelations[];
 
       return {
         data: transformedData,
@@ -321,11 +320,11 @@ export class ContactsAPI {
         .select('contact_type')
         .neq('contact_type', null);
 
-      const byType = (byTypeData || []).reduce((acc, contact) => {
+      const byType = (byTypeData || []).reduce<Record<string, number>>((acc, contact: { contact_type: string | null }) => {
         const type = contact.contact_type || 'unknown';
         acc[type] = (acc[type] || 0) + 1;
         return acc;
-      }, {} as Record<string, number>);
+      }, {});
 
       // Get top companies
       const { data: companiesData } = await supabase
@@ -333,17 +332,17 @@ export class ContactsAPI {
         .select('company')
         .neq('company', null);
 
-      const companyCount = (companiesData || []).reduce((acc, contact) => {
+      const companyCount = (companiesData || []).reduce<Record<string, number>>((acc, contact: { company: string | null }) => {
         if (contact.company) {
           acc[contact.company] = (acc[contact.company] || 0) + 1;
         }
         return acc;
-      }, {} as Record<string, number>);
+      }, {});
 
       const topCompanies = Object.entries(companyCount)
-        .sort(([, a], [, b]) => b - a)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
         .slice(0, 10)
-        .map(([company, count]) => ({ company, count }));
+        .map(([company, count]) => ({ company, count: count as number }));
 
       // TODO: Implement growth trend calculation
       const growthTrend: { month: string; count: number }[] = [];
@@ -351,7 +350,7 @@ export class ContactsAPI {
       return {
         totalContacts: totalContacts || 0,
         newThisMonth: newThisMonth || 0,
-        byType: Object.entries(byType).map(([type, count]) => ({ type, count })),
+        byType: Object.entries(byType).map(([type, count]) => ({ type, count: count as number })),
         topCompanies,
         growthTrend
       };
@@ -442,7 +441,7 @@ export class ContactsAPI {
       // Group by email similarity
       const emailGroups = new Map<string, CrmContact[]>();
       
-      contacts?.forEach(contact => {
+      contacts?.forEach((contact: CrmContact) => {
         if (contact.email) {
           const email = contact.email.toLowerCase();
           if (!emailGroups.has(email)) {

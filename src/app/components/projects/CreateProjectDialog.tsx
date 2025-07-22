@@ -6,7 +6,7 @@ import { Project } from '@/app/types/todo';
 interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  onCreateProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<Project>;
 }
 
 const PRESET_COLORS = [
@@ -81,7 +81,7 @@ export default function CreateProjectDialog({ open, onOpenChange, onCreateProjec
         actual_hours: 0
       };
 
-      await onCreateProject(projectData);
+      const createdProject = await onCreateProject(projectData);
       
       // Reset form on success
       setTitle('');

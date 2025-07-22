@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase/client';
 import {
   CrmActivity,
   CreateActivityRequest,
@@ -291,30 +291,30 @@ export class ActivitiesAPI {
         .from('crm_activities')
         .select('activity_type');
 
-      const byType = (byTypeData || []).reduce((acc, activity) => {
+      const byType = (byTypeData || []).reduce<Record<string, number>>((acc, activity: { activity_type: string }) => {
         const type = activity.activity_type;
         acc[type] = (acc[type] || 0) + 1;
         return acc;
-      }, {} as Record<string, number>);
+      }, {});
 
       // Get activities by priority
       const { data: byPriorityData } = await supabase
         .from('crm_activities')
         .select('priority');
 
-      const byPriority = (byPriorityData || []).reduce((acc, activity) => {
+      const byPriority = (byPriorityData || []).reduce<Record<string, number>>((acc, activity: { priority: string | null }) => {
         const priority = activity.priority || 'medium';
         acc[priority] = (acc[priority] || 0) + 1;
         return acc;
-      }, {} as Record<string, number>);
+      }, {});
 
       return {
         totalActivities: totalActivities || 0,
         completedToday: completedToday || 0,
         pendingActivities: pendingActivities || 0,
         overdue: overdue || 0,
-        byType: Object.entries(byType).map(([type, count]) => ({ type, count })),
-        byPriority: Object.entries(byPriority).map(([priority, count]) => ({ priority, count }))
+        byType: Object.entries(byType).map(([type, count]) => ({ type, count: count as number })),
+        byPriority: Object.entries(byPriority).map(([priority, count]) => ({ priority, count: count as number }))
       };
     } catch (error) {
       console.error('Error getting activity analytics:', error);

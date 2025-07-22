@@ -63,17 +63,14 @@ const Navigation = () => {
       >
         {/* Logo */}
         <div className="p-6">
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center">
             <Image
               src="/SyntoraLogo1.webp"
               alt="Syntora Logo"
-              width={40}
-              height={40}
+              width={152}
+              height={34}
               className="rounded-lg"
             />
-            <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              Syntora
-            </span>
           </Link>
         </div>
 

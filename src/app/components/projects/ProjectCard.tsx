@@ -1,21 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar, Clock, CheckCircle, Target, MoreVertical, Edit3, 
-  Trash2, Play, Pause, Archive, AlertTriangle 
+  Trash2, Play, Pause, Archive, AlertTriangle, Tag, Building
 } from 'lucide-react';
 import { Project } from '@/app/types/todo';
+import { Button } from '@/components/ui/button';
 
 interface ProjectCardProps {
-  project: Project & {
-    total_tasks: number;
-    completed_tasks: number;
-    progress_percentage: number;
-    actual_hours?: number;
-    is_overdue?: boolean;
-  };
+  project: Project;
   viewMode: 'grid' | 'list';
   onClick: () => void;
   onEdit: () => void;
@@ -31,14 +26,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onDelete,
   onStatusChange
 }) => {
-  const [showDropdown, setShowDropdown] = useState(false);
-
   const getStatusColor = (status: Project['status']) => {
     const colors = {
-      active: 'text-green-400 bg-green-400/20 border-green-400/30',
-      completed: 'text-blue-400 bg-blue-400/20 border-blue-400/30',
-      on_hold: 'text-yellow-400 bg-yellow-400/20 border-yellow-400/30',
-      archived: 'text-gray-400 bg-gray-400/20 border-gray-400/30'
+      active: 'text-green-400 bg-green-500/20 border-green-500/30',
+      completed: 'text-blue-400 bg-blue-500/20 border-blue-500/30',
+      on_hold: 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30',
+      archived: 'text-gray-400 bg-gray-500/20 border-gray-500/30',
+      cancelled: 'text-red-400 bg-red-500/20 border-red-500/30'
     };
     return colors[status] || colors.active;
   };
@@ -61,7 +55,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         className={`
           bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 hover:border-gray-600/50 
           transition-all duration-300 cursor-pointer
-          ${project.is_overdue ? 'border-red-500/30 bg-red-900/10' : ''}
+          ${project.due_date && new Date(project.due_date) < new Date() ? 'border-red-500/30 bg-red-900/10' : ''}
         `}
         onClick={onClick}
       >
@@ -90,7 +84,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             <div className="flex items-center space-x-2">
               <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                  className="h-full bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA]"
                   initial={{ width: 0 }}
                   animate={{ width: `${project.progress_percentage}%` }}
                   transition={{ duration: 0.5 }}
@@ -107,42 +101,35 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             {/* Due Date */}
             {project.due_date && (
               <div className={`text-sm flex items-center space-x-1 ${
-                project.is_overdue ? 'text-red-400' : 'text-gray-400'
+                new Date(project.due_date) < new Date() ? 'text-red-400' : 'text-gray-400'
               }`}>
                 <Calendar className="w-4 h-4" />
                 <span>{formatDate(project.due_date)}</span>
-                {project.is_overdue && <AlertTriangle className="w-4 h-4" />}
+                {new Date(project.due_date) < new Date() && <AlertTriangle className="w-4 h-4" />}
               </div>
             )}
           </div>
 
           {/* Actions */}
           <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            {showDropdown && (
-              <div className="absolute right-0 top-10 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 min-w-32">
-                <button
-                  onClick={() => { onEdit(); setShowDropdown(false); }}
-                  className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 flex items-center space-x-2"
-                >
-                  <Edit3 className="w-4 h-4" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={() => { onDelete(); setShowDropdown(false); }}
-                  className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center space-x-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEdit}
+                className="text-gray-400 hover:text-white"
+              >
+                <Edit3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDelete}
+                className="text-red-400 hover:text-red-300"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -160,7 +147,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
       className={`
         bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 
         transition-all duration-300 cursor-pointer relative overflow-hidden
-        ${project.is_overdue ? 'border-red-500/30 bg-red-900/10' : ''}
+        ${project.due_date && new Date(project.due_date) < new Date() ? 'border-red-500/30 bg-red-900/10' : ''}
       `}
       onClick={onClick}
     >
@@ -191,38 +178,33 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
         {/* Actions dropdown */}
         <div className="relative" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-
-          {showDropdown && (
-            <div className="absolute right-0 top-10 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-20 min-w-32">
-              <button
-                onClick={() => { onEdit(); setShowDropdown(false); }}
-                className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 flex items-center space-x-2"
-              >
-                <Edit3 className="w-4 h-4" />
-                <span>Edit</span>
-              </button>
-              <button
-                onClick={() => { onDelete(); setShowDropdown(false); }}
-                className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center space-x-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete</span>
-              </button>
-            </div>
-          )}
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+              className="text-gray-400 hover:text-white"
+            >
+              <Edit3 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              className="text-red-400 hover:text-red-300"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Description */}
-      <p className="text-gray-400 text-sm mb-4 line-clamp-2 relative z-10">
-        {project.description}
-      </p>
+      {project.description && (
+        <p className="text-gray-400 text-sm mb-4 line-clamp-2 relative z-10">
+          {project.description}
+        </p>
+      )}
 
       {/* Progress */}
       <div className="mb-4 relative z-10">
@@ -230,9 +212,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           <span className="text-gray-400">Progress</span>
           <span className="text-white font-medium">{project.progress_percentage}%</span>
         </div>
-        <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+            className="h-full bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${project.progress_percentage}%` }}
             transition={{ duration: 0.5 }}
@@ -255,10 +237,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
       {/* Footer */}
       <div className="flex items-center justify-between text-sm text-gray-400 relative z-10">
         {project.due_date ? (
-          <div className={`flex items-center space-x-1 ${project.is_overdue ? 'text-red-400' : ''}`}>
+          <div className={`flex items-center space-x-1 ${
+            new Date(project.due_date) < new Date() ? 'text-red-400' : ''
+          }`}>
             <Calendar className="w-4 h-4" />
             <span>{formatDate(project.due_date)}</span>
-            {project.is_overdue && <AlertTriangle className="w-4 h-4" />}
+            {new Date(project.due_date) < new Date() && <AlertTriangle className="w-4 h-4" />}
           </div>
         ) : (
           <div>No due date</div>
@@ -272,9 +256,30 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         )}
       </div>
 
-      {/* Overdue indicator */}
-      {project.is_overdue && (
-        <div className="absolute top-4 right-4 w-3 h-3 bg-red-500 rounded-full animate-pulse z-10" />
+      {/* Tags */}
+      {project.tags && project.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-4 relative z-10">
+          {project.tags.map(tag => (
+            <span 
+              key={tag}
+              className="px-2 py-1 bg-gray-700/50 text-xs text-gray-300 rounded"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Related Items Indicators */}
+      {(project.contact_id || project.deal_id) && (
+        <div className="absolute top-4 right-4 flex items-center space-x-2">
+          {project.contact_id && (
+            <div className="w-2 h-2 rounded-full bg-blue-500" title="Has related contact" />
+          )}
+          {project.deal_id && (
+            <div className="w-2 h-2 rounded-full bg-green-500" title="Has related deal" />
+          )}
+        </div>
       )}
     </motion.div>
   );

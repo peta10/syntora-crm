@@ -1,279 +1,311 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from './client';
 import { Project } from '@/app/types/todo';
 
-export interface CreateProjectData {
-  title: string;
-  description: string;
-  color: string;
-  icon: string;
-  status?: 'active' | 'completed' | 'on_hold' | 'archived';
-  category?: string;
-  tags?: string[];
-  estimated_hours?: number;
-  is_public?: boolean;
-}
+export const projectsService = {
+  // Project CRUD
+  getProjects: async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        project_manager:profiles!project_manager_id (
+          id,
+          username,
+          full_name,
+          avatar_url
+        ),
+        client:crm_contacts!client_id (
+          id,
+          first_name,
+          last_name,
+          company
+        ),
+        contact:crm_contacts!contact_id (
+          id,
+          first_name,
+          last_name,
+          email,
+          phone
+        ),
+        deal:crm_deals!deal_id (
+          id,
+          deal_name,
+          value,
+          stage
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-export interface UpdateProjectData {
-  title?: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  status?: 'active' | 'completed' | 'on_hold' | 'archived';
-  category?: string;
-  tags?: string[];
-  estimated_hours?: number;
-  actual_hours?: number;
-  is_public?: boolean;
-  total_tasks?: number;
-  completed_tasks?: number;
-  progress_percentage?: number;
-}
+    if (error) throw error;
+    return data;
+  },
 
-class ProjectsService {
-  private supabase = createClientComponentClient();
+  getProjectById: async (id: string) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        project_manager:profiles!project_manager_id (
+          id,
+          username,
+          full_name,
+          avatar_url
+        ),
+        client:crm_contacts!client_id (
+          id,
+          first_name,
+          last_name,
+          company
+        ),
+        contact:crm_contacts!contact_id (
+          id,
+          first_name,
+          last_name,
+          email,
+          phone
+        ),
+        deal:crm_deals!deal_id (
+          id,
+          deal_name,
+          value,
+          stage
+        )
+      `)
+      .eq('id', id)
+      .single();
 
-  async getProjects(): Promise<Project[]> {
-    try {
-      const { data, error } = await this.supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
 
-      if (error) {
-        console.error('Error fetching projects:', error);
-        throw new Error(`Failed to fetch projects: ${error.message}`);
-      }
+  createProject: async (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert(project)
+      .select()
+      .single();
 
-      return data || [];
-    } catch (error) {
-      console.error('Failed to fetch projects:', error);
-      throw error;
-    }
-  }
+    if (error) throw error;
+    return data;
+  },
 
-  async getProjectById(id: string): Promise<Project | null> {
-    try {
-      const { data, error } = await this.supabase
-        .from('projects')
-        .select('*')
-        .eq('id', id)
-        .single();
+  updateProject: async (id: string, updates: Partial<Project>) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-      if (error) {
-        console.error('Error fetching project:', error);
-        throw new Error(`Failed to fetch project: ${error.message}`);
-      }
+    if (error) throw error;
+    return data;
+  },
 
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch project:', error);
-      throw error;
-    }
-  }
+  deleteProject: async (id: string) => {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
 
-  async createProject(projectData: CreateProjectData): Promise<Project> {
-    try {
-      console.log('Creating project with data:', projectData);
+    if (error) throw error;
+  },
 
-      // Generate a random UUID for owner_id since we don't have auth
-      const randomOwnerId = crypto.randomUUID();
+  // Milestones
+  getMilestones: async (projectId: string) => {
+    const { data, error } = await supabase
+      .from('project_milestones')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
 
-      const projectToInsert = {
-        ...projectData,
-        owner_id: randomOwnerId,
-        progress_percentage: 0,
-        total_tasks: 0,
-        completed_tasks: 0,
-        actual_hours: 0,
-      };
+    if (error) throw error;
+    return data;
+  },
 
-      const { data, error } = await this.supabase
-        .from('projects')
-        .insert(projectToInsert)
-        .select()
-        .single();
+  createMilestone: async (milestone: any) => {
+    const { data, error } = await supabase
+      .from('project_milestones')
+      .insert(milestone)
+      .select()
+      .single();
 
-      if (error) {
-        console.error('Supabase error creating project:', error);
-        throw new Error(`Failed to create project: ${error.message}`);
-      }
+    if (error) throw error;
+    return data;
+  },
 
-      console.log('Project created successfully:', data);
-      return data;
-    } catch (error) {
-      console.error('Error creating project:', error);
-      throw error;
-    }
-  }
+  updateMilestone: async (id: string, updates: any) => {
+    const { data, error } = await supabase
+      .from('project_milestones')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-  async updateProject(id: string, updates: UpdateProjectData): Promise<Project> {
-    try {
-      const { data, error } = await this.supabase
-        .from('projects')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+    if (error) throw error;
+    return data;
+  },
 
-      if (error) {
-        console.error('Error updating project:', error);
-        throw new Error(`Failed to update project: ${error.message}`);
-      }
+  deleteMilestone: async (id: string) => {
+    const { error } = await supabase
+      .from('project_milestones')
+      .delete()
+      .eq('id', id);
 
-      return data;
-    } catch (error) {
-      console.error('Failed to update project:', error);
-      throw error;
-    }
-  }
+    if (error) throw error;
+  },
 
-  async deleteProject(id: string): Promise<void> {
-    try {
-      // First, remove project_id from all tasks
-      await this.supabase
-        .from('tasks')
-        .update({ project_id: null })
-        .eq('project_id', id);
+  // Project Health
+  updateProjectHealth: async (id: string, status: Project['health_status'], notes?: string) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        health_status: status,
+        health_notes: notes,
+        last_health_check_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-      const { error } = await this.supabase
-        .from('projects')
-        .delete()
-        .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
 
-      if (error) {
-        console.error('Error deleting project:', error);
-        throw new Error(`Failed to delete project: ${error.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to delete project:', error);
-      throw error;
-    }
-  }
-
-  async assignTaskToProject(taskId: string, projectId: string | null): Promise<void> {
-    try {
-      const { error } = await this.supabase
-        .from('tasks')
-        .update({ project_id: projectId })
-        .eq('id', taskId);
-
-      if (error) {
-        console.error('Error assigning task to project:', error);
-        throw new Error(`Failed to assign task: ${error.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to assign task to project:', error);
-      throw error;
-    }
-  }
-
-  async getProjectTasks(projectId: string) {
-    try {
-      const { data, error } = await this.supabase
-        .from('tasks')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching project tasks:', error);
-        throw new Error(`Failed to fetch tasks: ${error.message}`);
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Failed to fetch project tasks:', error);
-      throw error;
-    }
-  }
-
-  async updateProjectProgress(projectId: string): Promise<void> {
-    try {
-      // This will be handled automatically by the database trigger
-      // But we can call it manually if needed
-      const tasks = await this.getProjectTasks(projectId);
-      const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(task => task.status === 'completed').length;
-      const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-
-      await this.updateProject(projectId, {
-        total_tasks: totalTasks,
-        completed_tasks: completedTasks,
+  // Project Progress
+  updateProjectProgress: async (id: string, progressPercentage: number) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
         progress_percentage: progressPercentage,
-      });
-    } catch (error) {
-      console.error('Failed to update project progress:', error);
-      throw error;
-    }
-  }
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-  // Real-time subscription for project changes
-  subscribeToProjects(callback: (payload: any) => void) {
-    return this.supabase
-      .channel('projects_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'projects',
-        },
-        callback
-      )
-      .subscribe();
-  }
+    if (error) throw error;
+    return data;
+  },
 
-  // Batch operations
-  async createMultipleProjects(projects: CreateProjectData[]): Promise<Project[]> {
-    try {
-      const randomOwnerId = crypto.randomUUID();
+  // Project Status
+  updateProjectStatus: async (id: string, status: Project['status'], reason?: string) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        status,
+        cancellation_reason: status === 'cancelled' ? reason : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-      const projectsWithOwner = projects.map(project => ({
-        ...project,
-        owner_id: randomOwnerId,
-        progress_percentage: 0,
-        total_tasks: 0,
-        completed_tasks: 0,
-        actual_hours: 0,
-      }));
+    if (error) throw error;
+    return data;
+  },
 
-      const { data, error } = await this.supabase
-        .from('projects')
-        .insert(projectsWithOwner)
-        .select();
+  // Project Filters
+  getProjectsByStatus: async (status: Project['status']) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('status', status)
+      .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error creating multiple projects:', error);
-        throw new Error(`Failed to create projects: ${error.message}`);
+    if (error) throw error;
+    return data;
+  },
+
+  getProjectsByClient: async (clientId: string) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  getProjectsByContact: async (contactId: string) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('contact_id', contactId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  getProjectsByDeal: async (dealId: string) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('deal_id', dealId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Project Analytics
+  getProjectAnalytics: async (projectId: string) => {
+    const { data: project } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    const { data: milestones } = await supabase
+      .from('project_milestones')
+      .select('*')
+      .eq('project_id', projectId);
+
+    const { data: tasks } = await supabase
+      .from('todos')
+      .select('*')
+      .eq('project_id', projectId);
+
+    const { data: timeEntries } = await supabase
+      .from('project_time_entries')
+      .select('*')
+      .eq('project_id', projectId);
+
+    const { data: budgetItems } = await supabase
+      .from('project_budget_items')
+      .select('*')
+      .eq('project_id', projectId);
+
+    return {
+      project,
+      metrics: {
+        total_milestones: milestones?.length || 0,
+        completed_milestones: milestones?.filter(m => m.status === 'completed').length || 0,
+        total_tasks: tasks?.length || 0,
+        completed_tasks: tasks?.filter(t => t.status === 'completed').length || 0,
+        total_hours: timeEntries?.reduce((sum, entry) => sum + (entry.duration_minutes || 0) / 60, 0) || 0,
+        total_budget: budgetItems?.reduce((sum, item) => sum + item.estimated_amount, 0) || 0,
+        total_spent: budgetItems?.reduce((sum, item) => sum + (item.actual_amount || 0), 0) || 0
+      },
+      progress: {
+        milestone_progress: milestones?.length 
+          ? (milestones.filter(m => m.status === 'completed').length / milestones.length) * 100 
+          : 0,
+        task_progress: tasks?.length 
+          ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 
+          : 0,
+        budget_progress: budgetItems?.length && project?.budget
+          ? (budgetItems.reduce((sum, item) => sum + (item.actual_amount || 0), 0) / project.budget) * 100
+          : 0
       }
-
-      return data;
-    } catch (error) {
-      console.error('Failed to create multiple projects:', error);
-      throw error;
-    }
+    };
   }
-
-  async duplicateProject(id: string, newTitle?: string): Promise<Project> {
-    try {
-      const originalProject = await this.getProjectById(id);
-      if (!originalProject) {
-        throw new Error('Project not found');
-      }
-
-      const { id: _, created_at, updated_at, ...projectData } = originalProject;
-      
-      const duplicatedProject = await this.createProject({
-        ...projectData,
-        title: newTitle || `${originalProject.title} (Copy)`,
-      });
-
-      return duplicatedProject;
-    } catch (error) {
-      console.error('Failed to duplicate project:', error);
-      throw error;
-    }
-  }
-}
-
-export const projectsService = new ProjectsService(); 
+}; 

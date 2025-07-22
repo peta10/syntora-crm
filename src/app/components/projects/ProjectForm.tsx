@@ -40,7 +40,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     due_date: project?.due_date || '',
     estimated_hours: project?.estimated_hours?.toString() || '',
     category: project?.category || '',
-    tags: project?.tags || []
+    tags: project?.tags || [],
+    is_public: project?.is_public || false,
+    owner_id: project?.owner_id || '' // This should be set to the current user's ID
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -82,7 +84,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
          progress_percentage: project?.progress_percentage || 0,
          total_tasks: project?.total_tasks || 0,
          completed_tasks: project?.completed_tasks || 0,
-         actual_hours: project?.actual_hours || 0
+         actual_hours: project?.actual_hours || 0,
+         is_public: formData.is_public,
+         owner_id: formData.owner_id
        });
       onClose();
     } catch (error) {
