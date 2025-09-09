@@ -148,10 +148,13 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
     }
   }, [gamingState.volume]);
 
-  // Load gaming state from Supabase
+  // Load gaming state from Supabase - with delay to not block auth
   useEffect(() => {
     const loadGamingStats = async () => {
       try {
+        // Add delay to let auth settle first
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         let stats = await GamingStatsAPI.getCurrentStats();
         
         if (!stats) {
@@ -160,6 +163,7 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
           
           // If still no stats, switch to public mode
           if (!stats) {
+            console.log('GamingProvider: No stats available, using public mode');
             setGamingState(prev => ({
               ...prev,
               loading: false,

@@ -345,7 +345,7 @@ export default function SettingsPage() {
                               </h4>
                               <p className="text-gray-400 text-sm">{user.email}</p>
                               <p className="text-gray-500 text-xs">
-                                Signed in since {new Date(user.created_at).toLocaleDateString()}
+                                Signed in since {new Date((user as any).created_at || Date.now()).toLocaleDateString()}
                               </p>
                             </div>
                             <div className="flex items-center space-x-2">
@@ -382,11 +382,11 @@ export default function SettingsPage() {
                             </div>
                             <div className="flex items-center justify-between">
                               <span>Last sign-in</span>
-                              <span>{new Date(user.last_sign_in_at || '').toLocaleDateString()}</span>
+                              <span>{new Date((user as any).last_sign_in_at || Date.now()).toLocaleDateString()}</span>
                             </div>
                             <div className="flex items-center justify-between">
                               <span>Authentication method</span>
-                              <span className="capitalize">{user.app_metadata?.provider || 'email'}</span>
+                              <span className="capitalize">{(user as any).app_metadata?.provider || 'email'}</span>
                             </div>
                           </div>
                         </div>

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { RolePermissions } from '@/app/types/auth';
 import {
   LayoutDashboard,
   CheckSquare,
@@ -15,24 +17,36 @@ import {
   Settings,
   DollarSign,
   Menu,
-  X
+  X,
+  LogOut,
+  User
 } from 'lucide-react';
+
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  requiresPermission?: keyof RolePermissions;
+}
 
 const Navigation = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const pathname = usePathname();
+  const { signOut, user } = useAuth();
 
-  const navigationItems = [
+  const { hasPermission } = useAuth();
+  
+  const navigationItems: NavigationItem[] = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Achievements', href: '/achievements', icon: Trophy },
-    { name: 'Analytics', href: '/analytics', icon: BarChart2 },
+    { name: 'Analytics', href: '/analytics', icon: BarChart2, requiresPermission: 'canViewAnalytics' as keyof RolePermissions },
     { name: 'Contacts', href: '/contacts', icon: Users },
     { name: 'Sales', href: '/sales', icon: DollarSign },
     { name: 'Projects', href: '/projects', icon: Briefcase },
     { name: 'Focus', href: '/focus', icon: Timer },
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ];
+    { name: 'Admin', href: '/admin', icon: Settings, requiresPermission: 'canAccessAdmin' as keyof RolePermissions },
+  ].filter(item => !item.requiresPermission || hasPermission?.(item.requiresPermission));
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -105,6 +119,41 @@ const Navigation = () => {
             );
           })}
         </nav>
+
+        {/* User Profile and Sign Out */}
+        {user && (
+          <div className="mt-auto p-4 border-t border-gray-700/50 space-y-2">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#6E86FF] to-[#FF6BBA] flex items-center justify-center">
+                <span className="text-sm font-semibold text-white">
+                  {user.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </p>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
+            </div>
+            
+            <Link
+              href="/settings/profile"
+              className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200 group"
+            >
+              <User className="w-5 h-5" />
+              <span className="font-medium">Profile Settings</span>
+            </Link>
+            
+            <button
+              onClick={() => signOut()}
+              className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200 group"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium">Sign Out</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Overlay for mobile */}

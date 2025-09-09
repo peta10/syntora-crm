@@ -288,22 +288,22 @@ export const projectsService = {
       project,
       metrics: {
         total_milestones: milestones?.length || 0,
-        completed_milestones: milestones?.filter(m => m.status === 'completed').length || 0,
+        completed_milestones: milestones?.filter((m: any) => m.status === 'completed').length || 0,
         total_tasks: tasks?.length || 0,
-        completed_tasks: tasks?.filter(t => t.status === 'completed').length || 0,
-        total_hours: timeEntries?.reduce((sum, entry) => sum + (entry.duration_minutes || 0) / 60, 0) || 0,
-        total_budget: budgetItems?.reduce((sum, item) => sum + item.estimated_amount, 0) || 0,
-        total_spent: budgetItems?.reduce((sum, item) => sum + (item.actual_amount || 0), 0) || 0
+        completed_tasks: tasks?.filter((t: any) => t.status === 'completed').length || 0,
+        total_hours: timeEntries?.reduce((sum: number, entry: any) => sum + (entry.duration_minutes || 0) / 60, 0) || 0,
+        total_budget: budgetItems?.reduce((sum: number, item: any) => sum + item.estimated_amount, 0) || 0,
+        total_spent: budgetItems?.reduce((sum: number, item: any) => sum + (item.actual_amount || 0), 0) || 0
       },
       progress: {
         milestone_progress: milestones?.length 
-          ? (milestones.filter(m => m.status === 'completed').length / milestones.length) * 100 
+          ? (milestones.filter((m: any) => m.status === 'completed').length / milestones.length) * 100 
           : 0,
         task_progress: tasks?.length 
-          ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 
+          ? (tasks.filter((t: any) => t.status === 'completed').length / tasks.length) * 100 
           : 0,
         budget_progress: budgetItems?.length && project?.budget
-          ? (budgetItems.reduce((sum, item) => sum + (item.actual_amount || 0), 0) / project.budget) * 100
+          ? (budgetItems.reduce((sum: number, item: any) => sum + (item.actual_amount || 0), 0) / project.budget) * 100
           : 0
       }
     };

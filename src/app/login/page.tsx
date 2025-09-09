@@ -1,7 +1,7 @@
 'use client';
 
-import { SignIn1 } from '@/components/ui/modern-stunning-sign-in';
+import { FloatingSignIn } from '@/app/components/auth/FloatingSignIn';
 
 export default function LoginPage() {
-  return <SignIn1 />;
-} 
+  return <FloatingSignIn />;
+}

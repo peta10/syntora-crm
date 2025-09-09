@@ -32,7 +32,7 @@ export const commentsService = {
     if (error) throw error;
 
     // Get replies for each comment
-    const comments = await Promise.all(data.map(async (comment) => {
+    const comments = await Promise.all(data.map(async (comment: any) => {
       const { data: replies } = await supabase
         .from('project_comments')
         .select(`

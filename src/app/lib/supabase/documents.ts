@@ -151,16 +151,16 @@ export const documentsService = {
 
     if (error) throw error;
 
-    const fileTypes = [...new Set(data.map(doc => doc.file_type))];
+    const fileTypes = [...new Set(data.map((doc: any) => doc.file_type))];
     return {
       total_count: data.length,
-      total_size: data.reduce((sum, doc) => sum + (doc.file_size || 0), 0),
+      total_size: data.reduce((sum: number, doc: any) => sum + (doc.file_size || 0), 0),
       by_type: fileTypes.map(type => ({
         type,
-        count: data.filter(doc => doc.file_type === type).length,
+        count: data.filter((doc: any) => doc.file_type === type).length,
         total_size: data
-          .filter(doc => doc.file_type === type)
-          .reduce((sum, doc) => sum + (doc.file_size || 0), 0)
+          .filter((doc: any) => doc.file_type === type)
+          .reduce((sum: number, doc: any) => sum + (doc.file_size || 0), 0)
       }))
     };
   }

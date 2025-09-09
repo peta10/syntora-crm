@@ -94,7 +94,7 @@ export const kpisService = {
     if (error) throw error;
 
     const now = new Date();
-    return kpis.filter(kpi => {
+    return kpis.filter((kpi: any) => {
       if (!kpi.last_measured_at) return true;
 
       const lastMeasured = new Date(kpi.last_measured_at);

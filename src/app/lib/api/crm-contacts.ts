@@ -320,7 +320,7 @@ export class ContactsAPI {
         .select('contact_type')
         .neq('contact_type', null);
 
-      const byType = (byTypeData || []).reduce<Record<string, number>>((acc, contact: { contact_type: string | null }) => {
+      const byType = (byTypeData as { contact_type: string | null }[] || []).reduce<Record<string, number>>((acc, contact) => {
         const type = contact.contact_type || 'unknown';
         acc[type] = (acc[type] || 0) + 1;
         return acc;
@@ -332,7 +332,7 @@ export class ContactsAPI {
         .select('company')
         .neq('company', null);
 
-      const companyCount = (companiesData || []).reduce<Record<string, number>>((acc, contact: { company: string | null }) => {
+      const companyCount = (companiesData as { company: string | null }[] || []).reduce<Record<string, number>>((acc, contact) => {
         if (contact.company) {
           acc[contact.company] = (acc[contact.company] || 0) + 1;
         }

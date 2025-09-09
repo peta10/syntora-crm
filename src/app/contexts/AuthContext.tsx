@@ -1,58 +1,96 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { User, Session } from '@supabase/supabase-js';
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
-  signOut: () => Promise<{ error: Error | null }>;
-}
+import { getSupabaseClient } from '@/app/lib/supabase/client';
+import { Session } from '@supabase/supabase-js';
+import { AuthContextType, AuthUser, UserProfile, UserRole, ProfileFormData, RolePermissions } from '@/app/types/auth';
+import { hasPermission } from '@/app/utils/roles';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
+  const [error, setError] = useState<string | null>(null);
+  const supabase = getSupabaseClient();
 
   useEffect(() => {
+    // Prevent infinite loading state - max 5 seconds (reduced from 10)
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Auth loading timeout - forcing loading state to false');
+        setLoading(false);
+        setError('Authentication timeout. Please refresh the page if needed.');
+      }
+    }, 5000);
+
     const getSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (error) {
-        console.error('Error getting session:', error);
+        console.log('AuthContext: Starting getSession...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        console.log('AuthContext: Session result:', { session: !!session, error: sessionError });
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+          setError(sessionError.message);
+        } else {
+          setSession(session);
+          setUser(session?.user as AuthUser ?? null);
+          setError(null);
+          console.log('AuthContext: Set user:', !!session?.user);
+        }
+      } catch (err) {
+        console.error('Unexpected error getting session:', err);
+        setError('Failed to authenticate. Please try again.');
       } finally {
+        console.log('AuthContext: Setting loading to false');
         setLoading(false);
+        clearTimeout(loadingTimeout);
       }
     };
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    // Set up auth state change listener with error handling
+    let subscription: any = null;
+    try {
+      const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+        async (event: any, session: any) => {
+          setSession(session);
+          setUser(session?.user as AuthUser ?? null);
+          setLoading(false);
+          setError(null);
 
         // Create or update user profile when user signs in
         if (session?.user && event === 'SIGNED_IN') {
-          try {
-            // For Parker's account, map to existing profile
-            const isParkerAccount = session.user.email === 'parker@syntora.io';
-            const profileId = isParkerAccount ? '00000000-0000-0000-0000-000000000000' : session.user.id;
-            
-            const { error } = await supabase
-              .from('profiles')
-              .upsert({
+          // Don't block the auth flow if profile operations fail
+          (async () => {
+            try {
+              console.log('AuthContext: Attempting to fetch/create profile for user:', session.user.email);
+              
+              // For Parker's account, map to existing profile
+              const isParkerAccount = session.user.email === 'parker@syntora.io';
+              const profileId = isParkerAccount ? '00000000-0000-0000-0000-000000000000' : session.user.id;
+              
+              const { data: existingProfile, error: fetchError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', profileId)
+                .single();
+
+              if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('Error fetching profile:', fetchError);
+                return; // Don't continue if we can't fetch the profile
+              }
+
+              const profileData = {
                 id: profileId,
                 email: session.user.email,
                 first_name: session.user.user_metadata?.first_name || 
@@ -64,79 +102,256 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 username: session.user.user_metadata?.username || 
                          (isParkerAccount ? 'parker' : ''),
                 avatar_url: session.user.user_metadata?.avatar_url || '',
+                role: existingProfile?.role || (isParkerAccount ? UserRole.ADMIN : UserRole.USER),
                 updated_at: new Date().toISOString(),
-              }, {
-                onConflict: 'id'
-              });
+              };
 
-            if (error) {
-              console.error('Error updating profile:', error);
+              const { error } = await supabase
+                .from('profiles')
+                .upsert(profileData, {
+                  onConflict: 'id'
+                });
+
+              if (error) {
+                console.error('Error updating profile:', error);
+              } else {
+                console.log('AuthContext: Profile updated successfully');
+                // Set the profile in state
+                setProfile(profileData as UserProfile);
+              }
+            } catch (error) {
+              console.error('Error creating/updating profile:', error);
             }
-          } catch (error) {
-            console.error('Error creating/updating profile:', error);
-          }
+          })();
         }
-      }
-    );
 
-    return () => subscription.unsubscribe();
+        // Clear profile when user signs out
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+        }
+      } // End of onAuthStateChange callback
+      );
+      subscription = authSubscription;
+    } catch (err) {
+      console.error('Error setting up auth listener:', err);
+      setLoading(false);
+      clearTimeout(loadingTimeout);
+    }
+
+    return () => {
+      clearTimeout(loadingTimeout);
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [supabase.auth]);
 
   const signIn = async (email: string, password: string) => {
     try {
+      setError(null);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      if (error) {
+        setError(error.message);
+      }
+      
       return { error };
-    } catch (error) {
-      return { error: error as Error };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred during sign in';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, metadata?: Record<string, any>) => {
     try {
+      setError(null);
       const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: metadata || {},
+        },
       });
+      
+      if (error) {
+        setError(error.message);
+      }
+      
       return { error };
-    } catch (error) {
-      return { error: error as Error };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred during sign up';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
     }
   };
 
   const signInWithGoogle = async () => {
     try {
+      setError(null);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`,
         },
       });
+      
+      if (error) {
+        setError(error.message);
+      }
+      
       return { error };
-    } catch (error) {
-      return { error: error as Error };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred during Google sign in';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
     }
   };
 
   const signOut = async () => {
     try {
+      setError(null);
       const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        setError(error.message);
+      }
+      
       return { error };
-    } catch (error) {
-      return { error: error as Error };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred during sign out';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
     }
   };
 
-  const value = {
+  const resetPassword = async (email: string) => {
+    try {
+      setError(null);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      
+      if (error) {
+        setError(error.message);
+      }
+      
+      return { error };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred during password reset';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      setError(null);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      
+      if (error) {
+        setError(error.message);
+      }
+      
+      return { error };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred during password update';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
+    }
+  };
+
+  const updateProfile = async (profileData: Partial<ProfileFormData>) => {
+    try {
+      setError(null);
+      
+      // Update auth user metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          username: profileData.username,
+          full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
+        }
+      });
+
+      if (authError) {
+        setError(authError.message);
+        return { error: authError };
+      }
+
+      // Update profile in database if profile exists
+      if (profile) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            first_name: profileData.firstName,
+            last_name: profileData.lastName,
+            username: profileData.username,
+            full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
+            bio: profileData.bio,
+            website: profileData.website,
+            location: profileData.location,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', profile.id);
+
+        if (profileError) {
+          setError(profileError.message);
+          return { error: profileError };
+        }
+      }
+      
+      return { error: null };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred during profile update';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      setError(null);
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      
+      setUser(user as AuthUser);
+      return { error: null };
+    } catch (err) {
+      const errorMessage = 'An unexpected error occurred while refreshing user';
+      setError(errorMessage);
+      return { error: new Error(errorMessage) };
+    }
+  };
+
+  const checkPermission = (permission: keyof RolePermissions) => {
+    return hasPermission(profile, permission);
+  };
+
+  const value: AuthContextType = {
     user,
-    session,
+    profile,
     loading,
+    error,
     signIn,
     signUp,
     signInWithGoogle,
     signOut,
+    resetPassword,
+    updatePassword,
+    updateProfile,
+    refreshUser,
+    hasPermission: checkPermission,
   };
 
   return (

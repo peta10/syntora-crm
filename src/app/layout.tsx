@@ -4,9 +4,10 @@ import { useEffect } from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from './components/Providers';
-import Navigation from './components/layout/Navigation';
 import { GamingProvider } from '@/app/contexts/GamingContext';
 import { AuthProvider } from '@/app/contexts/AuthContext';
+import { AuthGuard } from '@/app/components/auth/AuthGuard';
+import { NavigationWrapper } from '@/app/components/layout/NavigationWrapper';
 import { getDesktopManager } from '@/app/utils/desktop';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -48,14 +49,13 @@ export default function RootLayout({
       <body className={`${inter.className} bg-black`}>
         <Providers>
           <AuthProvider>
-            <GamingProvider>
-              <div className="flex min-h-screen">
-                <Navigation />
-                <main className="flex-1 lg:pl-64">
+            <AuthGuard>
+              <GamingProvider>
+                <NavigationWrapper>
                   {children}
-                </main>
-              </div>
-            </GamingProvider>
+                </NavigationWrapper>
+              </GamingProvider>
+            </AuthGuard>
           </AuthProvider>
         </Providers>
       </body>

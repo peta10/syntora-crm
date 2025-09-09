@@ -109,14 +109,14 @@ export const budgetService = {
     if (error) throw error;
 
     return {
-      total_estimated: data.reduce((sum, item) => sum + item.estimated_amount, 0),
-      total_actual: data.reduce((sum, item) => sum + (item.actual_amount || 0), 0),
-      total_variance: data.reduce((sum, item) => sum + (item.actual_amount || 0) - item.estimated_amount, 0),
+      total_estimated: data.reduce((sum: number, item: any) => sum + item.estimated_amount, 0),
+      total_actual: data.reduce((sum: number, item: any) => sum + (item.actual_amount || 0), 0),
+      total_variance: data.reduce((sum: number, item: any) => sum + (item.actual_amount || 0) - item.estimated_amount, 0),
       items_by_status: {
-        planned: data.filter(item => item.status === 'planned').length,
-        approved: data.filter(item => item.status === 'approved').length,
-        spent: data.filter(item => item.status === 'spent').length,
-        cancelled: data.filter(item => item.status === 'cancelled').length
+        planned: data.filter((item: any) => item.status === 'planned').length,
+        approved: data.filter((item: any) => item.status === 'approved').length,
+        spent: data.filter((item: any) => item.status === 'spent').length,
+        cancelled: data.filter((item: any) => item.status === 'cancelled').length
       }
     };
   },
@@ -130,13 +130,13 @@ export const budgetService = {
 
     if (error) throw error;
 
-    const categories = [...new Set(data.map(item => item.category))];
+    const categories = [...new Set(data.map((item: any) => item.category))];
     return categories.map(category => {
-      const items = data.filter(item => item.category === category);
+      const items = data.filter((item: any) => item.category === category);
       return {
         category,
-        total_estimated: items.reduce((sum, item) => sum + item.estimated_amount, 0),
-        total_actual: items.reduce((sum, item) => sum + (item.actual_amount || 0), 0),
+        total_estimated: items.reduce((sum: number, item: any) => sum + item.estimated_amount, 0),
+        total_actual: items.reduce((sum: number, item: any) => sum + (item.actual_amount || 0), 0),
         item_count: items.length
       };
     });

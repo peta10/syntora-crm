@@ -92,7 +92,7 @@ export const resourcesService = {
       .eq('project_id', projectId);
 
     if (error) throw error;
-    return data.reduce((sum, resource) => sum + (resource.total_cost || 0), 0);
+    return data.reduce((sum: number, resource: any) => sum + (resource.total_cost || 0), 0);
   },
 
   // Get resource allocation for a date range

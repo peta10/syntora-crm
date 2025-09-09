@@ -291,7 +291,7 @@ export class ActivitiesAPI {
         .from('crm_activities')
         .select('activity_type');
 
-      const byType = (byTypeData || []).reduce<Record<string, number>>((acc, activity: { activity_type: string }) => {
+      const byType = (byTypeData as { activity_type: string }[] || []).reduce<Record<string, number>>((acc, activity) => {
         const type = activity.activity_type;
         acc[type] = (acc[type] || 0) + 1;
         return acc;
@@ -302,7 +302,7 @@ export class ActivitiesAPI {
         .from('crm_activities')
         .select('priority');
 
-      const byPriority = (byPriorityData || []).reduce<Record<string, number>>((acc, activity: { priority: string | null }) => {
+      const byPriority = (byPriorityData as { priority: string | null }[] || []).reduce<Record<string, number>>((acc, activity) => {
         const priority = activity.priority || 'medium';
         acc[priority] = (acc[priority] || 0) + 1;
         return acc;

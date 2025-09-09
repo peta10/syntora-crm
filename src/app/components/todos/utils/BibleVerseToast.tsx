@@ -28,18 +28,8 @@ export const BibleVerseToast: React.FC = () => {
           if (bibleVerse) {
             // Show the toast notification
             toast({
-              title: (
-                <div className="flex items-center space-x-2">
-                  <BookOpen className="w-5 h-5 text-amber-400" />
-                  <span className="text-amber-400 font-semibold">Daily Bible Verse</span>
-                </div>
-              ),
-              description: (
-                <div className="mt-2 space-y-2">
-                  <p className="text-gray-200 italic">"{bibleVerse.verse}"</p>
-                  <p className="text-sm text-gray-400 font-medium">— {bibleVerse.reference}</p>
-                </div>
-              ),
+              title: "📖 Daily Bible Verse",
+              description: `"${bibleVerse.verse}" — ${bibleVerse.reference}`,
               duration: 10000, // Show for 10 seconds
               className: "bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border-amber-500/30",
             });
