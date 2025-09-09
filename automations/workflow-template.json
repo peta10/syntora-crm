@@ -1,0 +1,43 @@
+{
+  "name": "Template Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "content": "# Workflow Template\n\nThis is a template workflow for Syntora automations.\n\n## Instructions:\n1. Replace this note with your workflow logic\n2. Add appropriate trigger nodes\n3. Configure data processing nodes\n4. Add error handling\n5. Test thoroughly before deployment\n\n## Workflow Details:\n- **Purpose**: [Describe what this workflow does]\n- **Trigger**: [How this workflow is triggered]\n- **Dependencies**: [What services/data this needs]\n- **Output**: [What this workflow produces]",
+        "height": 464,
+        "width": 668
+      },
+      "id": "note-node",
+      "name": "Workflow Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [460, 240]
+    }
+  ],
+  "connections": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "template-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "template",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "syntora",
+      "name": "syntora"
+    }
+  ]
+}

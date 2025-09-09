@@ -15,6 +15,12 @@ export interface Todo {
   reflection_date?: string;
   order?: number;
   project_id?: string;
+  // Time tracking fields
+  time_tracking_enabled?: boolean;
+  time_started_at?: string;
+  time_stopped_at?: string;
+  total_time_spent?: number; // in minutes
+  is_currently_tracking?: boolean;
 }
 
 export interface ProjectComment {

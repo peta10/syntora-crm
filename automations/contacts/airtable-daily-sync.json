@@ -1,0 +1,650 @@
+{
+  "name": "Airtable Daily Contact Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "cronExpression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Daily 6AM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "Triggers daily at 6 AM to sync contacts from Airtable"
+    },
+    {
+      "parameters": {
+        "authentication": "airtableTokenApi",
+        "resource": "record",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "app1Z91z04fuR6Gd0",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Contacts",
+          "mode": "name"
+        },
+        "options": {
+          "returnAll": true,
+          "sort": [
+            {
+              "field": "Last Modified",
+              "direction": "desc"
+            }
+          ]
+        }
+      },
+      "id": "fetch-airtable-contacts",
+      "name": "Fetch Airtable Contacts",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [460, 300],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtable-token",
+          "name": "Airtable Token"
+        }
+      },
+      "notes": "Fetch all contacts from Airtable, sorted by last modified"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/crm/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "fetch-app-contacts",
+      "name": "Fetch App Contacts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 480],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "syntora-api-auth",
+          "name": "Syntora API Auth"
+        }
+      },
+      "notes": "Fetch existing contacts from Syntora app for comparison"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Business Contact Classification & Data Processing Logic\nconst airtableContacts = $input.first().json;\nconst appContacts = $input.last().json.data || [];\n\n// Create lookup map of existing contacts by airtable_id and email\nconst existingContactsMap = new Map();\nappContacts.forEach(contact => {\n  if (contact.airtable_id) {\n    existingContactsMap.set(contact.airtable_id, contact);\n  }\n  if (contact.email) {\n    existingContactsMap.set(contact.email.toLowerCase(), contact);\n  }\n});\n\n// Business email domains (personal domains)\nconst personalDomains = [\n  'gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', \n  'icloud.com', 'aol.com', 'protonmail.com', 'mail.com'\n];\n\nfunction classifyContact(email, companyName) {\n  if (!email) return 'unknown';\n  \n  const emailDomain = email.split('@')[1]?.toLowerCase();\n  \n  if (personalDomains.includes(emailDomain)) {\n    return companyName ? 'friend' : 'unknown';\n  } else {\n    return companyName ? 'client' : 'prospect';\n  }\n}\n\nfunction formatPhoneNumber(phone) {\n  if (!phone) return null;\n  // Remove all non-digits and format\n  const cleaned = phone.replace(/\\D/g, '');\n  if (cleaned.length === 10) {\n    return `(${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6)}`;\n  }\n  return phone; // Return original if can't format\n}\n\nfunction validateEmail(email) {\n  if (!email) return false;\n  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  return emailRegex.test(email);\n}\n\nfunction validateUrl(url) {\n  if (!url) return null;\n  try {\n    // Add https:// if no protocol\n    if (!url.startsWith('http://') && !url.startsWith('https://')) {\n      url = 'https://' + url;\n    }\n    new URL(url);\n    return url;\n  } catch {\n    return null;\n  }\n}\n\nconst processedContacts = [];\nconst errors = [];\nconst stats = {\n  total: 0,\n  new: 0,\n  updated: 0,\n  skipped: 0,\n  errors: 0\n};\n\n// Process each Airtable contact\nfor (const record of airtableContacts.records || []) {\n  stats.total++;\n  \n  try {\n    const fields = record.fields;\n    \n    // Skip if missing required fields\n    if (!fields['First Name'] || !fields['Last Name']) {\n      errors.push({\n        recordId: record.id,\n        error: 'Missing required fields: First Name or Last Name',\n        data: fields\n      });\n      stats.skipped++;\n      continue;\n    }\n    \n    // Validate email\n    const email = fields['Email'];\n    if (email && !validateEmail(email)) {\n      errors.push({\n        recordId: record.id,\n        error: 'Invalid email format',\n        email: email\n      });\n      stats.skipped++;\n      continue;\n    }\n    \n    // Check if contact exists\n    const existingContact = existingContactsMap.get(record.id) || \n                           (email ? existingContactsMap.get(email.toLowerCase()) : null);\n    \n    // Classify contact type\n    const contactType = classifyContact(email, fields['Company Name']);\n    \n    // Build contact object\n    const contactData = {\n      airtable_id: record.id,\n      first_name: fields['First Name'].trim(),\n      last_name: fields['Last Name'].trim(),\n      email: email?.toLowerCase() || null,\n      phone: formatPhoneNumber(fields['Phone']),\n      company: fields['Company Name']?.trim() || null,\n      website: validateUrl(fields['Website URL']),\n      linkedin_url: validateUrl(fields['LinkedIn Profile']),\n      contact_type: contactType,\n      contact_source: 'airtable',\n      tags: existingContact?.tags ? [...existingContact.tags, 'airtable-sync'] : ['airtable-sync'],\n      // Preserve app-specific fields\n      lead_score: existingContact?.lead_score || 0,\n      notes: existingContact?.notes || null,\n      last_contact_date: existingContact?.last_contact_date || null\n    };\n    \n    // Determine operation type\n    let operationType = 'create';\n    let contactId = null;\n    \n    if (existingContact) {\n      operationType = 'update';\n      contactId = existingContact.id;\n      \n      // Check if update is needed (compare key fields)\n      const fieldsToCompare = ['first_name', 'last_name', 'email', 'phone', 'company', 'website', 'linkedin_url'];\n      const needsUpdate = fieldsToCompare.some(field => {\n        return contactData[field] !== existingContact[field];\n      });\n      \n      if (!needsUpdate) {\n        stats.skipped++;\n        continue; // Skip if no changes needed\n      }\n      \n      stats.updated++;\n    } else {\n      stats.new++;\n    }\n    \n    processedContacts.push({\n      json: {\n        ...contactData,\n        id: contactId,\n        operation: operationType,\n        airtable_record_id: record.id\n      }\n    });\n    \n  } catch (error) {\n    errors.push({\n      recordId: record.id,\n      error: error.message,\n      data: record.fields\n    });\n    stats.errors++;\n  }\n}\n\n// Add summary data\nprocessedContacts.push({\n  json: {\n    _summary: true,\n    stats: stats,\n    errors: errors,\n    timestamp: new Date().toISOString()\n  }\n});\n\nreturn processedContacts;"
+      },
+      "id": "process-contacts",
+      "name": "Process & Classify Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 390],
+      "notes": "Business logic: classify contacts, detect changes, format data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-summary",
+              "leftValue": "={{ $json._summary }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-summary",
+      "name": "Filter Summary",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [900, 390],
+      "notes": "Separate summary data from contact records"
+    },
+    {
+      "parameters": {
+        "batchSize": 50,
+        "options": {}
+      },
+      "id": "batch-contacts",
+      "name": "Batch Process Contacts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1120, 300],
+      "notes": "Process contacts in batches of 50 for performance"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-create",
+              "leftValue": "={{ $json.operation }}",
+              "rightValue": "create",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "route-operations",
+      "name": "Route Create/Update",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1340, 300],
+      "notes": "Route to create or update endpoints based on operation type"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/crm/contacts",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "first_name",
+              "value": "={{ $json.first_name }}"
+            },
+            {
+              "name": "last_name",
+              "value": "={{ $json.last_name }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $json.email }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.phone }}"
+            },
+            {
+              "name": "company",
+              "value": "={{ $json.company }}"
+            },
+            {
+              "name": "website",
+              "value": "={{ $json.website }}"
+            },
+            {
+              "name": "linkedin_url",
+              "value": "={{ $json.linkedin_url }}"
+            },
+            {
+              "name": "contact_type",
+              "value": "={{ $json.contact_type }}"
+            },
+            {
+              "name": "contact_source",
+              "value": "={{ $json.contact_source }}"
+            },
+            {
+              "name": "tags",
+              "value": "={{ $json.tags }}"
+            },
+            {
+              "name": "airtable_id",
+              "value": "={{ $json.airtable_id }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 50
+            }
+          }
+        }
+      },
+      "id": "create-contacts",
+      "name": "Create New Contacts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "syntora-api-auth",
+          "name": "Syntora API Auth"
+        }
+      },
+      "notes": "Create new contacts in Syntora app"
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:3000/api/crm/contacts/{{ $json.id }}",
+        "method": "PUT",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "first_name",
+              "value": "={{ $json.first_name }}"
+            },
+            {
+              "name": "last_name",
+              "value": "={{ $json.last_name }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $json.email }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.phone }}"
+            },
+            {
+              "name": "company",
+              "value": "={{ $json.company }}"
+            },
+            {
+              "name": "website",
+              "value": "={{ $json.website }}"
+            },
+            {
+              "name": "linkedin_url",
+              "value": "={{ $json.linkedin_url }}"
+            },
+            {
+              "name": "contact_type",
+              "value": "={{ $json.contact_type }}"
+            },
+            {
+              "name": "airtable_id",
+              "value": "={{ $json.airtable_id }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 50
+            }
+          }
+        }
+      },
+      "id": "update-contacts",
+      "name": "Update Existing Contacts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "syntora-api-auth",
+          "name": "Syntora API Auth"
+        }
+      },
+      "notes": "Update existing contacts in Syntora app"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "timestamp",
+              "field2": "timestamp"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "merge-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1780, 300],
+      "notes": "Combine create and update results"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Generate sync completion report\nconst results = $input.all();\nconst timestamp = new Date().toISOString();\n\nlet totalProcessed = 0;\nlet successCount = 0;\nlet errorCount = 0;\nconst errors = [];\n\n// Process results from create and update operations\nresults.forEach(item => {\n  const data = item.json;\n  \n  if (data._summary) {\n    // This is the summary from processing\n    return;\n  }\n  \n  totalProcessed++;\n  \n  if (data.error) {\n    errorCount++;\n    errors.push({\n      operation: data.operation || 'unknown',\n      airtable_id: data.airtable_id,\n      error: data.error,\n      contact: {\n        name: `${data.first_name} ${data.last_name}`,\n        email: data.email,\n        company: data.company\n      }\n    });\n  } else {\n    successCount++;\n  }\n});\n\n// Calculate success rate\nconst successRate = totalProcessed > 0 ? (successCount / totalProcessed * 100).toFixed(2) : 0;\n\nconst report = {\n  sync_completed_at: timestamp,\n  summary: {\n    total_processed: totalProcessed,\n    successful: successCount,\n    failed: errorCount,\n    success_rate: `${successRate}%`\n  },\n  errors: errors.slice(0, 10), // Limit to first 10 errors\n  total_errors: errors.length,\n  status: errorCount === 0 ? 'SUCCESS' : errorCount < totalProcessed * 0.1 ? 'SUCCESS_WITH_WARNINGS' : 'FAILED'\n};\n\nreturn [{ json: report }];"
+      },
+      "id": "generate-report",
+      "name": "Generate Sync Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "notes": "Generate comprehensive sync completion report"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-errors",
+              "leftValue": "={{ $json.total_errors }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "check-errors",
+      "name": "Has Errors?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2220, 300],
+      "notes": "Check if there were any errors during sync"
+    },
+    {
+      "parameters": {
+        "url": "YOUR_SLACK_WEBHOOK_URL",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\"text\": \"🚨 Airtable Contact Sync Issues\", \"blocks\": [{\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Airtable Contact Sync Completed with Issues*\\n\\n• *Status*: {{ $json.status }}\\n• *Total Processed*: {{ $json.summary.total_processed }}\\n• *Successful*: {{ $json.summary.successful }}\\n• *Failed*: {{ $json.summary.failed }}\\n• *Success Rate*: {{ $json.summary.success_rate }}\\n\\n*Recent Errors:*\\n{{ $json.errors.map(e => `• ${e.contact.name} (${e.contact.email}): ${e.error}`).join('\\n').slice(0, 500) }}\"}}]}",
+        "options": {}
+      },
+      "id": "send-error-notification",
+      "name": "Send Error Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 200],
+      "notes": "Send Slack notification for sync errors"
+    },
+    {
+      "parameters": {
+        "url": "YOUR_SLACK_WEBHOOK_URL",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\"text\": \"✅ Airtable Contact Sync Completed\", \"blocks\": [{\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Daily Airtable Contact Sync Completed Successfully*\\n\\n• *Total Processed*: {{ $json.summary.total_processed }}\\n• *Successful*: {{ $json.summary.successful }}\\n• *Success Rate*: {{ $json.summary.success_rate }}\\n• *Completed*: {{ $json.sync_completed_at }}\"}}]}",
+        "options": {}
+      },
+      "id": "send-success-notification",
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 400],
+      "notes": "Send Slack notification for successful sync"
+    },
+    {
+      "parameters": {
+        "content": "# Airtable Contact Sync Workflow\n\n## Overview\nThis workflow performs daily synchronization of contacts from Airtable to the Syntora application.\n\n## Process Flow\n1. **Daily Trigger**: Runs every day at 6 AM\n2. **Data Fetch**: Gets contacts from both Airtable and Syntora app\n3. **Business Logic**: Classifies contacts and detects changes\n4. **Batch Processing**: Processes contacts in batches of 50\n5. **CRUD Operations**: Creates new or updates existing contacts\n6. **Reporting**: Generates sync report and sends notifications\n\n## Business Rules\n- **Contact Classification**: \n  - Business email + Company = Client/Prospect\n  - Personal email + Company = Friend\n  - Personal email only = Unknown\n- **Airtable Always Wins**: Airtable data overwrites app data\n- **Preserve App Fields**: lead_score, notes, last_contact_date\n- **Change Detection**: Only updates if data actually changed\n\n## Error Handling\n- Validates required fields (First Name, Last Name)\n- Validates email format\n- Handles API rate limits with batching\n- Comprehensive error reporting\n- Continues processing even if individual records fail\n\n## Notifications\n- Success notification with summary stats\n- Error notification with detailed error list\n- Sent via Slack webhook\n\n## Configuration Required\n1. Set Airtable Base ID in 'Fetch Airtable Contacts' node\n2. Configure Syntora API URL in HTTP Request nodes\n3. Set up Airtable Token credential\n4. Set up Syntora API Auth credential\n5. Configure Slack webhook URLs for notifications\n\n## Monitoring\n- Check daily execution logs\n- Monitor Slack notifications\n- Review error patterns for data quality issues",
+        "height": 464,
+        "width": 668
+      },
+      "id": "workflow-documentation",
+      "name": "Workflow Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [100, 600]
+    }
+  ],
+  "connections": {
+    "Daily 6AM Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Airtable Contacts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch App Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Airtable Contacts": {
+      "main": [
+        [
+          {
+            "node": "Process & Classify Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch App Contacts": {
+      "main": [
+        [
+          {
+            "node": "Process & Classify Contacts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Process & Classify Contacts": {
+      "main": [
+        [
+          {
+            "node": "Filter Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Summary": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Batch Process Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Process Contacts": {
+      "main": [
+        [
+          {
+            "node": "Route Create/Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Create/Update": {
+      "main": [
+        [
+          {
+            "node": "Create New Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Existing Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create New Contacts": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Existing Contacts": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Generate Sync Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Sync Report": {
+      "main": [
+        [
+          {
+            "node": "Has Errors?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Errors?": {
+      "main": [
+        [
+          {
+            "node": "Send Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "errorWorkflow": "",
+      "continueOnFail": false
+    }
+  },
+  "versionId": "airtable-sync-v1.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "syntora-airtable-sync"
+  },
+  "id": "airtable-daily-sync",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "syntora",
+      "name": "syntora"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "airtable",
+      "name": "airtable"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "contacts",
+      "name": "contacts"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "sync",
+      "name": "sync"
+    }
+  ]
+}

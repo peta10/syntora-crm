@@ -10,6 +10,9 @@ interface TodoStore {
   addTodo: (todo: Omit<Todo, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateTodo: (id: string, updates: Partial<Todo>) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
+  // Time tracking functions
+  startTimeTracking: (id: string) => Promise<void>;
+  stopTimeTracking: (id: string) => Promise<void>;
 }
 
 const useStore = create<TodoStore>((set, get) => ({
@@ -68,6 +71,39 @@ const useStore = create<TodoStore>((set, get) => ({
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete todo';
+      set({ error: errorMessage, isLoading: false });
+    }
+  },
+
+  // Time tracking functions
+  startTimeTracking: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedTodo = await api.startTimeTracking(id);
+      set((state) => ({
+        todos: state.todos.map((todo) =>
+          todo.id === id ? updatedTodo : todo
+        ),
+        isLoading: false
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start time tracking';
+      set({ error: errorMessage, isLoading: false });
+    }
+  },
+
+  stopTimeTracking: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedTodo = await api.stopTimeTracking(id);
+      set((state) => ({
+        todos: state.todos.map((todo) =>
+          todo.id === id ? updatedTodo : todo
+        ),
+        isLoading: false
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to stop time tracking';
       set({ error: errorMessage, isLoading: false });
     }
   },

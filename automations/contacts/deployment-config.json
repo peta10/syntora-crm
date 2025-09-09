@@ -1,0 +1,107 @@
+{
+  "deployment": {
+    "name": "Airtable Daily Contact Sync - Production",
+    "version": "1.0.0",
+    "status": "ready-to-deploy",
+    "last_updated": "2024-12-19"
+  },
+  "airtable": {
+    "base_id": "app1Z91z04fuR6Gd0",
+    "table_name": "Contacts",
+    "access_token": "patJTLsgN5jMHzK6m",
+    "expected_fields": [
+      "First Name",
+      "Last Name",
+      "Phone", 
+      "Email",
+      "Company Name",
+      "Website URL",
+      "LinkedIn Profile"
+    ]
+  },
+  "syntora_app": {
+    "api_base_url": "TO_BE_CONFIGURED",
+    "endpoints": {
+      "get_contacts": "/api/crm/contacts",
+      "create_contact": "/api/crm/contacts",
+      "update_contact": "/api/crm/contacts/{id}"
+    },
+    "auth_header": "Authorization: Bearer YOUR_TOKEN"
+  },
+  "schedule": {
+    "cron": "0 6 * * *",
+    "timezone": "UTC",
+    "description": "Daily at 6:00 AM UTC"
+  },
+  "performance": {
+    "batch_size": 50,
+    "max_execution_time": "5 minutes",
+    "retry_attempts": 3,
+    "rate_limit_delay": "100ms"
+  },
+  "notifications": {
+    "slack_webhook": "TO_BE_CONFIGURED",
+    "success_notifications": true,
+    "error_notifications": true,
+    "daily_summary": true
+  },
+  "validation": {
+    "workflow_validated": true,
+    "airtable_config_ready": true,
+    "base_id_configured": true,
+    "credentials_needed": [
+      "airtable-token",
+      "syntora-api-auth"
+    ]
+  },
+  "deployment_steps": [
+    {
+      "step": 1,
+      "action": "Import workflow JSON into n8n",
+      "status": "ready",
+      "file": "airtable-daily-sync.json"
+    },
+    {
+      "step": 2, 
+      "action": "Configure Airtable credentials",
+      "status": "ready",
+      "details": "Token: patJTLsgN5jMHzK6m"
+    },
+    {
+      "step": 3,
+      "action": "Configure Syntora API credentials", 
+      "status": "pending",
+      "details": "Need API URL and token"
+    },
+    {
+      "step": 4,
+      "action": "Set up Slack notifications",
+      "status": "optional",
+      "details": "Configure webhook URL"
+    },
+    {
+      "step": 5,
+      "action": "Test workflow manually",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "action": "Activate daily schedule",
+      "status": "pending"
+    }
+  ],
+  "testing": {
+    "test_contacts": [
+      {
+        "first_name": "Test",
+        "last_name": "Contact",
+        "email": "test@example.com",
+        "company": "Test Company"
+      }
+    ],
+    "validation_endpoints": {
+      "airtable": "https://api.airtable.com/v0/app1Z91z04fuR6Gd0/Contacts?maxRecords=1",
+      "syntora": "YOUR_DOMAIN/api/crm/contacts?limit=1"
+    }
+  }
+}
