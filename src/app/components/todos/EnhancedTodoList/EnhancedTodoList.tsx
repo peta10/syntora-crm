@@ -123,21 +123,42 @@ const EnhancedTodoList: React.FC = () => {
           playSound('complete');
         }
 
-        // Calculate points
+        // Calculate points and update database via API  
+        // Priority values come as strings from the API mapping
         const basePoints = todo.show_gratitude ? 25 : 
                          (todo.priority === 'high' ? 20 : 
                           todo.priority === 'medium' ? 15 : 10);
         const comboBonus = combo >= 3 ? 5 : 0;
         const totalPoints = basePoints + comboBonus;
         
+        // FIXED: Use the real gaming stats API instead of local state
+        try {
+          const { GamingStatsAPI } = await import('@/app/lib/api/gaming-stats');
+          await GamingStatsAPI.addPoints(totalPoints, 'task_completion');
+          console.log('✅ Points added to database:', totalPoints);
+        } catch (error) {
+          console.error('Error adding points to database:', error);
+        }
+        
         setTodayPoints((prev) => prev + totalPoints);
         setShowPointsBurst(true);
         setTimeout(() => setShowPointsBurst(false), 2000);
       } else {
-        setCombo(0);
+        // FIXED: Also update database when uncompleting task
+        // Priority values come as strings from the API mapping
         const points = todo.show_gratitude ? 25 : 
                       (todo.priority === 'high' ? 20 : 
                        todo.priority === 'medium' ? 15 : 10);
+        
+        try {
+          const { GamingStatsAPI } = await import('@/app/lib/api/gaming-stats');
+          await GamingStatsAPI.addPoints(-points, 'task_uncomplete');
+          console.log('✅ Points subtracted from database:', points);
+        } catch (error) {
+          console.error('Error subtracting points from database:', error);
+        }
+        
+        setCombo(0);
         setTodayPoints((prev) => Math.max(0, prev - points));
       }
     }

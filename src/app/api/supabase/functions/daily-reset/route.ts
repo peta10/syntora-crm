@@ -6,11 +6,17 @@ export async function POST(request: NextRequest) {
     // Get current date
     const today = new Date().toISOString().split('T')[0];
     
-    // Get current stats
+    // Get current user's stats (user-specific)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
     const { data: currentStats, error: fetchError } = await supabase
       .from('gaming_stats')
       .select('*')
-      .limit(1)
+      .eq('user_id', user.id)  // FIXED: Filter by actual user ID
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') {
@@ -89,6 +95,7 @@ export async function POST(request: NextRequest) {
       .from('gaming_stats')
       .update(resetUpdates)
       .eq('id', currentStats.id)
+      .eq('user_id', user.id)  // SAFETY: Double-check user ID
       .select()
       .single();
 

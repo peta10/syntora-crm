@@ -161,7 +161,7 @@ function AdminDashboard() {
 
 export default function AdminPage() {
   return (
-    <RoleGuard allowedRoles={[UserRole.ADMIN]}>
+    <RoleGuard allowedRoles={[UserRole.ADMIN, UserRole.SUPERADMIN]}>
       <AdminDashboard />
     </RoleGuard>
   );

@@ -48,6 +48,17 @@ export interface UpdatePasswordFormErrors {
   general?: string;
 }
 
+export interface NewPasswordFormData {
+  password: string;
+  confirmPassword: string;
+}
+
+export interface NewPasswordFormErrors {
+  password?: string;
+  confirmPassword?: string;
+  general?: string;
+}
+
 export interface ProfileFormData {
   firstName?: string;
   lastName?: string;
@@ -97,8 +108,9 @@ export interface UserProfile {
 
 export enum UserRole {
   USER = 'user',
+  MODERATOR = 'moderator',
   ADMIN = 'admin',
-  MODERATOR = 'moderator'
+  SUPERADMIN = 'superadmin'
 }
 
 export interface RolePermissions {
@@ -106,6 +118,11 @@ export interface RolePermissions {
   canManageContent: boolean;
   canViewAnalytics: boolean;
   canAccessAdmin: boolean;
+  canManageSystem: boolean;
+  canDeleteUsers: boolean;
+  canManageRoles: boolean;
+  canViewLogs: boolean;
+  canBackupData: boolean;
 }
 
 // Auth state interface

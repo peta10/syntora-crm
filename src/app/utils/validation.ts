@@ -7,6 +7,8 @@ import {
   ResetPasswordFormErrors,
   UpdatePasswordFormData,
   UpdatePasswordFormErrors,
+  NewPasswordFormData,
+  NewPasswordFormErrors,
   ProfileFormData,
   ProfileFormErrors
 } from '@/app/types/auth';
@@ -19,20 +21,42 @@ export function validatePassword(password: string): boolean {
   return password.length >= 6;
 }
 
-export function validateStrongPassword(password: string): { isValid: boolean; message?: string } {
+export function validateStrongPassword(password: string): { 
+  isValid: boolean; 
+  message?: string;
+  strength: 'weak' | 'medium' | 'strong';
+  issues: string[];
+} {
+  const issues: string[] = [];
+  
   if (password.length < 8) {
-    return { isValid: false, message: 'Password must be at least 8 characters long' };
+    issues.push('Must be at least 8 characters long');
   }
   if (!/(?=.*[a-z])/.test(password)) {
-    return { isValid: false, message: 'Password must contain at least one lowercase letter' };
+    issues.push('Must contain at least one lowercase letter');
   }
   if (!/(?=.*[A-Z])/.test(password)) {
-    return { isValid: false, message: 'Password must contain at least one uppercase letter' };
+    issues.push('Must contain at least one uppercase letter');
   }
   if (!/(?=.*\d)/.test(password)) {
-    return { isValid: false, message: 'Password must contain at least one number' };
+    issues.push('Must contain at least one number');
   }
-  return { isValid: true };
+  if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?])/.test(password)) {
+    issues.push('Must contain at least one special character');
+  }
+
+  // Determine strength
+  let strength: 'weak' | 'medium' | 'strong' = 'weak';
+  if (issues.length === 0) {
+    strength = 'strong';
+  } else if (issues.length <= 2) {
+    strength = 'medium';
+  }
+
+  const isValid = issues.length === 0;
+  const message = issues.length > 0 ? issues[0] : undefined;
+
+  return { isValid, message, strength, issues };
 }
 
 export function validateUsername(username: string): boolean {
@@ -137,6 +161,27 @@ export function validateUpdatePasswordForm(data: UpdatePasswordFormData): Update
 
   if (data.currentPassword === data.newPassword) {
     errors.newPassword = 'New password must be different from current password';
+  }
+
+  return errors;
+}
+
+export function validateNewPasswordForm(data: NewPasswordFormData): NewPasswordFormErrors {
+  const errors: NewPasswordFormErrors = {};
+
+  if (!data.password) {
+    errors.password = 'Password is required';
+  } else {
+    const passwordValidation = validateStrongPassword(data.password);
+    if (!passwordValidation.isValid) {
+      errors.password = passwordValidation.message;
+    }
+  }
+
+  if (!data.confirmPassword) {
+    errors.confirmPassword = 'Please confirm your password';
+  } else if (data.password !== data.confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match';
   }
 
   return errors;

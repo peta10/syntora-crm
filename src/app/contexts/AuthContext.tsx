@@ -45,6 +45,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(session?.user as AuthUser ?? null);
           setError(null);
           console.log('AuthContext: Set user:', !!session?.user);
+          
+          // FIXED: Also load profile on initial session load (not just SIGNED_IN)
+          if (session?.user) {
+            (async () => {
+              try {
+                console.log('AuthContext: Loading profile for existing session:', session.user.email);
+                
+                const { data: existingProfile, error: fetchError } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .single();
+
+                if (fetchError && fetchError.code !== 'PGRST116') {
+                  console.error('Error fetching profile on initial load:', fetchError);
+                  return;
+                }
+
+                if (existingProfile) {
+                  console.log('AuthContext: Profile loaded successfully - Role:', existingProfile.role);
+                  setProfile(existingProfile as UserProfile);
+                } else {
+                  console.log('AuthContext: No profile found for user:', session.user.email);
+                }
+              } catch (error) {
+                console.error('Error loading profile on initial session:', error);
+              }
+            })();
+          }
         }
       } catch (err) {
         console.error('Unexpected error getting session:', err);
@@ -75,9 +104,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             try {
               console.log('AuthContext: Attempting to fetch/create profile for user:', session.user.email);
               
-              // For Parker's account, map to existing profile
+              // For Parker's account, use the actual user ID from auth
               const isParkerAccount = session.user.email === 'parker@syntora.io';
-              const profileId = isParkerAccount ? '00000000-0000-0000-0000-000000000000' : session.user.id;
+              const profileId = session.user.id;
               
               const { data: existingProfile, error: fetchError } = await supabase
                 .from('profiles')
@@ -102,7 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 username: session.user.user_metadata?.username || 
                          (isParkerAccount ? 'parker' : ''),
                 avatar_url: session.user.user_metadata?.avatar_url || '',
-                role: existingProfile?.role || (isParkerAccount ? UserRole.ADMIN : UserRole.USER),
+                role: existingProfile?.role || (isParkerAccount ? UserRole.SUPERADMIN : UserRole.USER),
                 updated_at: new Date().toISOString(),
               };
 
@@ -232,7 +261,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setError(null);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}/auth/confirm?type=recovery&next=/update-password`,
       });
       
       if (error) {

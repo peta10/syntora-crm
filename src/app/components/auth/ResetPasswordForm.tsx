@@ -57,7 +57,7 @@ export function ResetPasswordForm({ onSubmit, isLoading, errors, isSuccess }: Re
         </h3>
         
         <p className="text-gray-400 text-sm mb-6">
-          We&apos;ve sent a password reset link to <strong>{formData.email}</strong>
+          We&apos;ve sent a password reset link to <strong>{formData.email}</strong>. Click the link in the email to reset your password.
         </p>
         
         <div className="text-xs text-gray-500">

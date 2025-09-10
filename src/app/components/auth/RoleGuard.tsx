@@ -7,6 +7,15 @@ import { hasRole } from '@/app/utils/roles';
 export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) {
   const { profile, loading } = useAuth();
 
+  // Debug logging for permission checking
+  console.log('RoleGuard check:', { 
+    profileExists: !!profile, 
+    profileRole: profile?.role, 
+    allowedRoles, 
+    loading,
+    hasAccess: profile ? allowedRoles.includes(profile.role) : false
+  });
+
   // Show loading while checking auth
   if (loading) {
     return (

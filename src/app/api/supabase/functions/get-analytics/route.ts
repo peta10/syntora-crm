@@ -7,11 +7,17 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || 'weekly';
     const lookback = parseInt(searchParams.get('lookback') || '12');
 
-    // Get current stats
+    // Get current user's stats (user-specific)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
     const { data: currentStats, error: statsError } = await supabase
       .from('gaming_stats')
       .select('*')
-      .limit(1)
+      .eq('user_id', user.id)  // FIXED: Filter by actual user ID
       .single();
 
     if (statsError && statsError.code !== 'PGRST116') {
@@ -31,6 +37,7 @@ export async function GET(request: NextRequest) {
     const { data: historyData, error: historyError } = await supabase
       .from('daily_stats_history')
       .select('*')
+      .eq('user_id', user.id)  // FIXED: Filter by user ID
       .gte('date', startDate.toISOString().split('T')[0])
       .lte('date', endDate.toISOString().split('T')[0])
       .order('date', { ascending: true });
@@ -44,12 +51,26 @@ export async function GET(request: NextRequest) {
     const { data: achievements, error: achievementsError } = await supabase
       .from('achievement_history')
       .select('*')
+      .eq('user_id', user.id)  // FIXED: Filter by user ID
       .gte('unlocked_at', startDate.toISOString())
       .order('unlocked_at', { ascending: false });
 
     // Don't throw error if achievements table doesn't exist
     if (achievementsError && !achievementsError.message.includes('does not exist')) {
       console.error('Achievements error:', achievementsError);
+    }
+
+    // Get user's actual task completion data for richer analytics
+    const { data: taskData, error: taskError } = await supabase
+      .from('daily_todos')
+      .select('*')
+      .eq('user_id', user.id)  // REAL USER DATA: Get actual tasks
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (taskError) {
+      console.error('Task data error:', taskError);
     }
 
     // Process analytics based on period
@@ -64,7 +85,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       analytics,
       achievements: achievements || [],
-      currentStats: currentStats || null
+      currentStats: currentStats || null,
+      taskData: taskData || [],  // REAL TASK DATA: Include actual user tasks
+      summary: {
+        totalTasks: taskData?.length || 0,
+        completedTasks: taskData?.filter((t: any) => t.completed)?.length || 0,
+        activeTasks: taskData?.filter((t: any) => !t.completed)?.length || 0,
+        highPriorityTasks: taskData?.filter((t: any) => t.priority === 5)?.length || 0,  // priority 5 = high
+        workTasks: taskData?.filter((t: any) => t.category === 'Work')?.length || 0,
+        personalTasks: taskData?.filter((t: any) => t.category === 'Personal')?.length || 0,
+        spiritualTasks: taskData?.filter((t: any) => t.show_gratitude)?.length || 0
+      }
     });
 
   } catch (error) {

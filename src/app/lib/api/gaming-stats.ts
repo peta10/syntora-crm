@@ -72,22 +72,31 @@ export class GamingStatsAPI {
 
   static async getCurrentStats(): Promise<GamingStats | null> {
     try {
-      // Since you're the only user, get the first (and only) record
-      const { data, error } = await this.supabase
-        .from('gaming_stats')
-        .select('*')
-        .limit(1)
-        .single();
-
-      if (error) {
-        // If no stats exist (PGRST116) or auth error, return null to trigger public mode
-        if (error.code === 'PGRST116' || error.message?.includes('auth')) {
-          return null;
-        }
-        console.error('Error fetching gaming stats:', error);
+      // Get current authenticated user
+      const { data: { user }, error: authError } = await this.supabase.auth.getUser();
+      
+      if (authError || !user) {
+        console.log('No authenticated user found for gaming stats');
         return null;
       }
 
+      // Get gaming stats for THIS specific user only
+      const { data, error } = await this.supabase
+        .from('gaming_stats')
+        .select('*')
+        .eq('user_id', user.id)  // FIXED: Filter by actual user ID
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          console.log('No gaming stats found for user:', user.email);
+          return null;
+        }
+        console.error('Error fetching user gaming stats:', error);
+        return null;
+      }
+
+      console.log('✅ Loaded gaming stats for user:', user.email, 'Level:', data.level);
       return data;
     } catch (error) {
       console.error('Failed to get gaming stats:', error);
@@ -109,9 +118,9 @@ export class GamingStatsAPI {
         return null;
       }
 
-      // Create new stats record with a UUID for user_id
+      // Create new stats record with the authenticated user's ID
       const defaultStats = {
-        user_id: crypto.randomUUID(),
+        user_id: session.user.id,  // FIXED: Use actual authenticated user ID
         level: 1,
         xp: 0,
         xp_to_next: 100,
@@ -174,6 +183,7 @@ export class GamingStatsAPI {
         .from('gaming_stats')
         .update(updatesWithTimestamp)
         .eq('id', currentStats.id)
+        .eq('user_id', session.user.id)  // SAFETY: Double-check user ID
         .select()
         .single();
 
