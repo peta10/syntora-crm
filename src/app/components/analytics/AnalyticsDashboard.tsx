@@ -19,8 +19,7 @@ export default function AnalyticsDashboard({ className = '' }: AnalyticsDashboar
     loading,
     error,
     triggerReset,
-    getAnalytics,
-    isPublicMode
+    getAnalytics
   } = useGaming();
 
   const [analytics, setAnalytics] = useState<WeeklyAnalytics[] | MonthlyAnalytics[]>([]);
@@ -73,15 +72,6 @@ export default function AnalyticsDashboard({ className = '' }: AnalyticsDashboar
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Public Mode Notice */}
-        {isPublicMode && (
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-blue-400 mb-2">Demo Mode</h3>
-            <p className="text-gray-300">
-              You are viewing demo analytics data. Sign in to track your own progress and achievements!
-            </p>
-          </div>
-        )}
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -112,14 +102,12 @@ export default function AnalyticsDashboard({ className = '' }: AnalyticsDashboar
                 Monthly
               </button>
             </div>
-            {!isPublicMode && (
-              <button
-                onClick={triggerReset}
-                className="px-4 py-2 bg-green-600/80 text-white rounded-lg hover:bg-green-600 transition-colors"
-              >
-                Trigger Daily Reset
-              </button>
-            )}
+            <button
+              onClick={triggerReset}
+              className="px-4 py-2 bg-green-600/80 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              Trigger Daily Reset
+            </button>
           </div>
         </div>
 

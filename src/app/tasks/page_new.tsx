@@ -90,11 +90,29 @@ export default function TasksPage() {
           </div>
           
           <div className="flex items-center space-x-6">
+            {/* Quick Stats */}
+            <div className="flex items-center space-x-4 text-sm">
+              <div className="flex items-center space-x-1 text-gray-400">
+                <Target className="w-4 h-4" />
+                <span>{pendingTasks} pending</span>
+              </div>
+              <div className="flex items-center space-x-1 text-green-400">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{completedToday} completed today</span>
+              </div>
+              {activeTasks > 0 && (
+                <div className="flex items-center space-x-1 text-blue-400">
+                  <Clock className="w-4 h-4" />
+                  <span>{activeTasks} tracking</span>
+                </div>
+              )}
+            </div>
+
             <GamingStats />
             
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white px-8 py-3 rounded-xl font-medium hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center space-x-3 min-w-[180px] justify-center"
+              className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center space-x-2"
             >
               <Plus className="w-5 h-5" />
               <span>Add New Task</span>
@@ -159,3 +177,4 @@ export default function TasksPage() {
     </div>
   );
 }
+

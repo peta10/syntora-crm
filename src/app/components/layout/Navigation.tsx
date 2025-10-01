@@ -39,8 +39,7 @@ const Navigation = () => {
   const navigationItems: NavigationItem[] = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-    { name: 'Achievements', href: '/achievements', icon: Trophy },
-    { name: 'Analytics', href: '/analytics', icon: BarChart2, requiresPermission: 'canViewAnalytics' as keyof RolePermissions },
+    { name: 'Reports', href: '/reports', icon: BarChart2, requiresPermission: 'canViewAnalytics' as keyof RolePermissions },
     { name: 'Contacts', href: '/contacts', icon: Users },
     { name: 'Sales', href: '/sales', icon: DollarSign },
     { name: 'Projects', href: '/projects', icon: Briefcase },

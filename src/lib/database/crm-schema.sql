@@ -1,6 +1,39 @@
 -- CRM Database Schema for Supabase
 -- This file contains all the tables needed for the CRM functionality
 
+-- Businesses table for managing companies/organizations
+CREATE TABLE IF NOT EXISTS public.crm_businesses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  company_name text NOT NULL,
+  website text,
+  industry text,
+  company_size text CHECK (company_size IN ('1-10', '11-50', '51-200', '201-1000', '1000+')),
+  annual_revenue numeric(15,2),
+  description text,
+  address_line_1 text,
+  address_line_2 text,
+  city text,
+  state text,
+  postal_code text,
+  country text,
+  phone text,
+  linkedin_url text,
+  twitter_url text,
+  logo_url text,
+  tags text[],
+  notes text,
+  business_type text CHECK (business_type IN ('prospect', 'client', 'partner', 'vendor', 'competitor')) DEFAULT 'prospect',
+  lead_score integer DEFAULT 0,
+  airtable_id text, -- For syncing with Airtable
+  custom_fields jsonb DEFAULT '{}',
+  created_by uuid REFERENCES public.profiles(id),
+  updated_by uuid REFERENCES public.profiles(id),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT crm_businesses_pkey PRIMARY KEY (id),
+  CONSTRAINT crm_businesses_company_name_unique UNIQUE (company_name)
+);
+
 -- Contacts table for managing all contacts/prospects/clients
 CREATE TABLE IF NOT EXISTS public.crm_contacts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -8,7 +41,8 @@ CREATE TABLE IF NOT EXISTS public.crm_contacts (
   last_name text NOT NULL,
   email text UNIQUE,
   phone text,
-  company text,
+  business_id uuid REFERENCES public.crm_businesses(id) ON DELETE SET NULL, -- Link to businesses
+  company text, -- Legacy field, will be phased out in favor of business_id
   job_title text,
   contact_type text CHECK (contact_type IN ('friend', 'unknown', 'prospect', 'client')) DEFAULT 'unknown',
   contact_source text, -- Where they came from (website, referral, etc.)

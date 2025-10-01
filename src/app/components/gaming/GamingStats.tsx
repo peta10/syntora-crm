@@ -56,24 +56,12 @@ export const GamingStats: React.FC = () => {
         </div>
       </div>
 
-      {/* Streak counter */}
-      <div className={`relative flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 ${showStreakBurst ? 'animate-pulse scale-110' : ''} transition-all duration-500`}>
-        <Flame className="w-5 h-5 text-orange-400 animate-pulse" />
-        <span className="font-bold text-orange-300">{streakCount} day streak</span>
-        {showStreakBurst && (
-          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-orange-400 font-bold animate-bounce">
-            🔥 STREAK! +1
-          </div>
-        )}
-      </div>
-      
       {/* Points display */}
       <div className={`relative flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#6E86FF]/20 to-[#FF6BBA]/20 border border-[#6E86FF]/30 ${showPointsBurst ? 'animate-pulse scale-110' : ''} transition-all duration-500`}>
-        <Zap className="w-5 h-5 text-[#6E86FF] animate-pulse" />
-        <div className="flex flex-col">
-          <span className="text-xs text-gray-400">Today</span>
-          <span className="font-bold bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] bg-clip-text text-transparent">{todayPoints} pts</span>
-        </div>
+        <Zap className="w-4 h-4 text-[#6E86FF]" />
+        <span className="text-sm font-bold bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] bg-clip-text text-transparent">
+          Today {todayPoints} pts
+        </span>
         {showPointsBurst && (
           <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] bg-clip-text text-transparent font-bold animate-bounce">
             +{combo > 1 ? combo * 5 : 15}

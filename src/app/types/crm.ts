@@ -1,13 +1,45 @@
 // CRM TypeScript Types
 // These types match the database schema for the CRM system
 
+export interface CrmBusiness {
+  id: string;
+  company_name: string;
+  website?: string;
+  industry?: string;
+  company_size?: '1-10' | '11-50' | '51-200' | '201-1000' | '1000+';
+  annual_revenue?: number;
+  description?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  phone?: string;
+  linkedin_url?: string;
+  twitter_url?: string;
+  logo_url?: string;
+  tags?: string[];
+  notes?: string;
+  business_type: 'prospect' | 'client' | 'partner' | 'vendor' | 'competitor';
+  lead_score: number;
+  airtable_id?: string;
+  custom_fields?: Record<string, any>;
+  created_by?: string;
+  updated_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CrmContact {
   id: string;
   first_name: string;
   last_name: string;
   email?: string;
   phone?: string;
-  company?: string;
+  business_id?: string; // Foreign key to CrmBusiness
+  business?: CrmBusiness; // Populated when joining
+  company?: string; // Legacy field
   job_title?: string;
   contact_type: 'friend' | 'unknown' | 'prospect' | 'client';
   contact_source?: string;
