@@ -148,12 +148,12 @@ export const GamingProvider: React.FC<GamingProviderProps> = ({ children }) => {
     }
   }, [gamingState.volume]);
 
-  // Load gaming state from Supabase - with delay to not block auth
+  // Load gaming state from Supabase
   useEffect(() => {
     const loadGamingStats = async () => {
       try {
-        // Add delay to let auth settle first
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Small delay to let auth settle
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         let stats = await GamingStatsAPI.getCurrentStats();
         

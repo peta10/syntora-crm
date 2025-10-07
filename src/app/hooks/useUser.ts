@@ -42,7 +42,7 @@ export function useUser() {
   const fetchUser = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id, first_name, last_name, email, avatar_url')
         .eq('id', userId)
         .single();

@@ -41,14 +41,16 @@ export interface CrmContact {
   business?: CrmBusiness; // Populated when joining
   company?: string; // Legacy field
   job_title?: string;
-  contact_type: 'friend' | 'unknown' | 'prospect' | 'client';
+  contact_type: 'friend' | 'unknown' | 'prospect' | 'client' | 'vendor' | 'partner'; // Match database constraint
   contact_source?: string;
-  address_line_1?: string;
-  address_line_2?: string;
-  city?: string;
-  state?: string;
-  postal_code?: string;
-  country?: string;
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  };
   website?: string;
   linkedin_url?: string;
   twitter_url?: string;
@@ -209,7 +211,7 @@ export interface CreateContactRequest {
   phone?: string;
   company?: string;
   job_title?: string;
-  contact_type?: 'friend' | 'unknown' | 'prospect' | 'client';
+  contact_type?: 'friend' | 'unknown' | 'prospect' | 'client' | 'vendor' | 'partner';
   contact_source?: string;
   address_line_1?: string;
   address_line_2?: string;

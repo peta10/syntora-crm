@@ -5,6 +5,7 @@
 
 import { Todo } from '@/app/types/todo';
 import ChicagoTime from '@/app/utils/timezone';
+import SessionManager from '@/app/lib/supabase/session-manager';
 
 interface OfflineTask extends Todo {
   _localId?: string;
@@ -307,6 +308,19 @@ class OfflineTaskManager {
     console.log('🔄 Starting Supabase sync...');
 
     try {
+      // Validate and refresh session if needed
+      const sessionValid = await SessionManager.ensureValidSession();
+      if (!sessionValid) {
+        throw new Error('Session validation failed - please refresh the page and sign in again');
+      }
+
+      const user = await SessionManager.getCurrentUser();
+      if (!user) {
+        throw new Error('User not authenticated - please sign in to sync');
+      }
+
+      console.log('✅ User authenticated:', user.email);
+
       // Step 1: Pull remote changes
       await this.pullRemoteChanges();
       
@@ -319,6 +333,7 @@ class OfflineTaskManager {
       console.log('✅ Sync completed successfully');
     } catch (error) {
       console.error('❌ Sync failed:', error);
+      // Don't throw here - let the app continue working offline
     } finally {
       this.syncInProgress = false;
     }
@@ -401,7 +416,7 @@ class OfflineTaskManager {
         } else if (task._localId && task.id.startsWith('temp-')) {
           // Create new task in remote
           console.log('📝 Creating in remote:', task.title);
-          const dbTask = this.mapOfflineTaskToDb(task);
+          const dbTask = await this.mapOfflineTaskToDb(task);
           
           const { data, error } = await supabase
             .from('daily_todos')
@@ -428,7 +443,7 @@ class OfflineTaskManager {
         } else {
           // Update existing task
           console.log('✏️ Updating in remote:', task.title);
-          const dbTask = this.mapOfflineTaskToDb(task);
+          const dbTask = await this.mapOfflineTaskToDb(task);
           
           const { data, error } = await supabase
             .from('daily_todos')
@@ -449,9 +464,23 @@ class OfflineTaskManager {
           
           this.tasks.set(task.id, updatedTask);
         }
-
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`Failed to sync task ${task.id}:`, error);
+        
+        // Handle specific error types
+        if (error instanceof Error) {
+          if (error.message.includes('403') || error.message.includes('Forbidden')) {
+            console.error('❌ 403 Forbidden: Authentication or RLS policy issue');
+            console.error('💡 Try refreshing the page to renew your session');
+          } else if (error.message.includes('Session expired')) {
+            console.error('❌ Session expired: Please sign in again');
+          } else if (error.message.includes('JWT')) {
+            console.error('❌ JWT token issue: Please refresh the page');
+          }
+        }
+        
+        // Keep the task marked for sync so we can retry later
+        task._needsSync = true;
       }
     }
 
@@ -492,7 +521,18 @@ class OfflineTaskManager {
     };
   }
 
-  private mapOfflineTaskToDb(task: OfflineTask): any {
+  private async mapOfflineTaskToDb(task: OfflineTask): Promise<any> {
+    // Validate session and get user
+    const sessionValid = await SessionManager.ensureValidSession();
+    if (!sessionValid) {
+      throw new Error('Session expired - please refresh the page and sign in again');
+    }
+    
+    const user = await SessionManager.getCurrentUser();
+    if (!user) {
+      throw new Error('User not authenticated - cannot sync tasks');
+    }
+
     return {
       title: task.title,
       description: task.description,
@@ -510,6 +550,7 @@ class OfflineTaskManager {
       time_stopped_at: task.time_stopped_at,
       total_time_spent: task.total_time_spent,
       is_currently_tracking: task.is_currently_tracking,
+      user_id: user.id, // Add the authenticated user's ID
       updated_at: new Date().toISOString()
     };
   }
@@ -762,9 +803,28 @@ class OfflineTaskManager {
   }
 
   async forceSyncNow(): Promise<void> {
-    if (this.isOnline) {
+    if (!this.isOnline) {
+      console.warn('⚠️ Cannot sync: Currently offline');
+      return;
+    }
+
+    try {
+      console.log('🔄 Force sync requested...');
+      
+      // Validate session before syncing
+      const sessionValid = await SessionManager.ensureValidSession();
+      if (!sessionValid) {
+        console.error('❌ Force sync failed: No valid session');
+        throw new Error('Please refresh the page and sign in again');
+      }
+
       await this.syncWithSupabase();
       this.notifyListeners();
+      console.log('✅ Force sync completed successfully');
+      
+    } catch (error) {
+      console.error('❌ Force sync failed:', error);
+      throw error;
     }
   }
 }

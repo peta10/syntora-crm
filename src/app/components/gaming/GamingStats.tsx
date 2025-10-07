@@ -17,9 +17,26 @@ export const GamingStats: React.FC = () => {
     showCombo,
     soundEnabled,
     updateSettings,
+    loading,
   } = useGaming();
 
   const progressPercentage = (xp / xpToNext) * 100;
+
+  // Show loading skeleton while data is being fetched
+  if (loading) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 animate-pulse">
+        <div className="flex items-center space-x-2 px-3 py-2 rounded-full bg-gray-700/30 border border-gray-600/30">
+          <div className="w-4 h-4 bg-gray-600 rounded"></div>
+          <div className="w-16 h-4 bg-gray-600 rounded"></div>
+        </div>
+        <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-700/30 border border-gray-600/30">
+          <div className="w-4 h-4 bg-gray-600 rounded"></div>
+          <div className="w-20 h-4 bg-gray-600 rounded"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-3">

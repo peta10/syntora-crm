@@ -209,7 +209,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white overflow-hidden">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white overflow-hidden">
       {/* Background gradient */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-[#6E86FF]/10 via-transparent to-[#FF6BBA]/10" />

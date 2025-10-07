@@ -33,6 +33,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "category": "Productivity",
     "copyright": "© 2025 Syntora",
     "shortDescription": "Personal task manager with spiritual focus",
@@ -50,9 +51,18 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": ""
+      "timestampUrl": "",
+      "nsis": {
+        "installMode": "perMachine"
+      }
     }
   },
   "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/syntora-org/syntora-crm/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBNzNCNzI4RkY0QjlBNTEKUldSdVFUVkdWRGhOTVZKWFJqVlFSVWxOUWpGRFJVVkZSVVJGUlVWRlJVVkZSVVZGUlVWRlJVVkZSVVZGUlVWRg=="
+    }
   }
 }

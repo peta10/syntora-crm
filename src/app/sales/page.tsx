@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { 
   Plus, 
   Search, 
@@ -10,48 +11,24 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Deal, PipelineStage, CreateDealRequest } from '@/app/types/sales';
+import { Deal, PipelineStage } from '@/app/types/sales';
+import { CreateDealRequest as CrmCreateDealRequest } from '@/app/types/crm';
 import { DealDetailsDialog } from '@/app/components/sales/DealDetailsDialog';
 import { NewDealForm } from '@/app/components/sales/NewDealForm';
 import { PipelineColumn } from '@/app/components/sales/PipelineColumn';
-
-// Mock pipeline stages
-const mockStages: PipelineStage[] = [
-  { id: '1', stage_name: 'Lead', stage_order: 1, probability: 10, color_hex: '#ef4444', is_active: true, created_at: '', updated_at: '' },
-  { id: '2', stage_name: 'Qualified', stage_order: 2, probability: 25, color_hex: '#f97316', is_active: true, created_at: '', updated_at: '' },
-  { id: '3', stage_name: 'Proposal', stage_order: 3, probability: 50, color_hex: '#eab308', is_active: true, created_at: '', updated_at: '' },
-  { id: '4', stage_name: 'Negotiation', stage_order: 4, probability: 75, color_hex: '#22c55e', is_active: true, created_at: '', updated_at: '' },
-  { id: '5', stage_name: 'Closed Won', stage_order: 5, probability: 100, color_hex: '#10b981', is_active: true, created_at: '', updated_at: '' },
-  { id: '6', stage_name: 'Closed Lost', stage_order: 6, probability: 0, color_hex: '#6b7280', is_active: true, created_at: '', updated_at: '' }
-];
-
-// Mock deals data
-const mockDeals: Deal[] = [
-  {
-    id: '1',
-    title: 'Website Redesign - Tech Corp',
-    contact_id: '1',
-    value: 45000,
-    stage: 'Proposal',
-    probability: 50,
-    close_date: '2024-02-15',
-    description: 'Complete website redesign and development project',
-    tags: ['web-design', 'enterprise'],
-    created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-15T10:30:00Z'
-  },
-  // ... other mock deals ...
-];
+import { DealsAPI } from '@/app/lib/api/crm-deals';
+import type { CrmDeal } from '@/app/types/crm';
 
 interface DealRowProps {
   deal: Deal;
+  stages: PipelineStage[];
   onEdit: (deal: Deal) => void;
   onDelete: (id: string) => void;
   onView: (deal: Deal) => void;
   onMoveStage: (dealId: string, newStage: string) => void;
 }
 
-const DealRow: React.FC<DealRowProps> = ({ deal, onEdit, onDelete, onView, onMoveStage }) => {
+const DealRow: React.FC<DealRowProps> = ({ deal, stages, onEdit, onDelete, onView, onMoveStage }) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -62,7 +39,7 @@ const DealRow: React.FC<DealRowProps> = ({ deal, onEdit, onDelete, onView, onMov
   };
 
   const getStageColor = (stage: string) => {
-    const stageInfo = mockStages.find(s => s.stage_name === stage);
+    const stageInfo = stages.find(s => s.stage_name === stage);
     return stageInfo?.color_hex || '#6E86FF';
   };
 
@@ -99,7 +76,7 @@ const DealRow: React.FC<DealRowProps> = ({ deal, onEdit, onDelete, onView, onMov
             borderColor: `${getStageColor(deal.stage)}50`
           }}
         >
-          {mockStages.map(stage => (
+          {stages.map(stage => (
             <option key={stage.id} value={stage.stage_name}>
               {stage.stage_name}
             </option>
@@ -171,14 +148,64 @@ const convertToCrmDeal = (deal: Deal) => ({
 });
 
 export default function SalesPage() {
-  const [deals, setDeals] = useState<Deal[]>(mockDeals);
-  const [stages] = useState<PipelineStage[]>(mockStages);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [stages, setStages] = useState<PipelineStage[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStage, setSelectedStage] = useState<string>('');
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isNewDealOpen, setIsNewDealOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load deals and stages on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Use default stages (pipeline_stages table doesn't exist yet)
+      // TODO: Create crm_pipeline_stages table and load from database
+      setStages([
+        { id: '1', stage_name: 'New', stage_order: 1, probability: 10, color_hex: '#3B82F6', is_active: true, created_at: '', updated_at: '' },
+        { id: '2', stage_name: 'Qualified', stage_order: 2, probability: 25, color_hex: '#8B5CF6', is_active: true, created_at: '', updated_at: '' },
+        { id: '3', stage_name: 'Proposal', stage_order: 3, probability: 50, color_hex: '#F59E0B', is_active: true, created_at: '', updated_at: '' }, 
+        { id: '4', stage_name: 'Negotiation', stage_order: 4, probability: 75, color_hex: '#EF4444', is_active: true, created_at: '', updated_at: '' },
+        { id: '5', stage_name: 'Closed Won', stage_order: 5, probability: 100, color_hex: '#10B981', is_active: true, created_at: '', updated_at: '' },
+        { id: '6', stage_name: 'Closed Lost', stage_order: 6, probability: 0, color_hex: '#6B7280', is_active: true, created_at: '', updated_at: '' }
+      ]);
+      
+      // Load deals
+      const dealsResponse = await DealsAPI.getAll({ limit: 1000 });
+      
+      // Map CrmDeal to Deal type
+      const mappedDeals: Deal[] = dealsResponse.data.map((d: CrmDeal) => ({
+        id: d.id,
+        title: d.deal_name,
+        contact_id: d.contact_id,
+        value: d.value,
+        stage: d.stage,
+        probability: d.probability,
+        close_date: d.expected_close_date || '',
+        description: d.description,
+        tags: d.tags || [],
+        created_at: d.created_at,
+        updated_at: d.updated_at
+      }));
+      
+      setDeals(mappedDeals);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('Failed to load deals. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // Group deals by stage
   const dealsByStage = stages.reduce((acc, stage) => {
@@ -194,65 +221,87 @@ export default function SalesPage() {
     return matchesSearch && matchesStage;
   });
 
-  const handleDealMove = (dealId: string, newStage: string) => {
-    setDeals(prev => prev.map(deal => 
-      deal.id === dealId 
-        ? { 
-            ...deal, 
-            stage: newStage,
-            probability: stages.find(s => s.stage_name === newStage)?.probability || deal.probability,
-            updated_at: new Date().toISOString()
-          }
-        : deal
-    ));
-  };
+  async function handleDealMove(dealId: string, newStage: string) {
+    try {
+      await DealsAPI.updateStage(dealId, newStage);
+      await loadData(); // Reload from database
+    } catch (err) {
+      console.error('Error moving deal:', err);
+      setError('Failed to update deal stage.');
+    }
+  }
 
   const handleEditDeal = (deal: Deal) => {
     // Implement edit functionality
     console.log('Edit deal:', deal);
   };
 
-  const handleDeleteDeal = (id: string) => {
-    setDeals(prev => prev.filter(d => d.id !== id));
-  };
+  async function handleDeleteDeal(id: string) {
+    if (!confirm('Are you sure you want to delete this deal?')) {
+      return;
+    }
+    
+    try {
+      await DealsAPI.delete(id);
+      await loadData(); // Reload from database
+    } catch (err) {
+      console.error('Error deleting deal:', err);
+      setError('Failed to delete deal.');
+    }
+  }
 
   const handleViewDeal = (deal: Deal) => {
     setSelectedDeal(deal);
     setIsDetailsOpen(true);
   };
 
-  const handleCreateDeal = (dealData: CreateDealRequest) => {
-    const newDeal: Deal = {
-      id: Math.random().toString(36).substr(2, 9), // Generate a random ID
-      title: dealData.title,
-      contact_id: dealData.contact_id,
-      value: dealData.value,
-      stage: dealData.stage,
-      probability: dealData.probability,
-      close_date: dealData.close_date,
-      description: dealData.description,
-      tags: dealData.tags,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setDeals(prev => [...prev, newDeal]);
-    setIsNewDealOpen(false);
-  };
+  async function handleCreateDeal(dealData: CrmCreateDealRequest) {
+    try {
+      await DealsAPI.create(dealData);
+      await loadData(); // Reload from database
+      setIsNewDealOpen(false);
+    } catch (err) {
+      console.error('Error creating deal:', err);
+      setError('Failed to create deal.');
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white">
+      <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Sales
-            </h1>
-            <p className="text-gray-400">
-              Manage your deals and pipeline
-            </p>
+          <div className="flex items-center space-x-4">
+            <Image
+              src="/FinalFavicon.webp"
+              alt="Syntora Logo"
+              width={48}
+              height={48}
+              className="rounded-xl"
+            />
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-2">
+                Sales Pipeline
+              </h1>
+              <p className="text-gray-400">
+                Manage your deals and pipeline
+              </p>
+            </div>
           </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+            <button 
+              onClick={() => { setError(null); loadData(); }}
+              className="mt-2 text-sm text-red-300 hover:text-red-100 underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
         {/* Actions Bar */}
         <div className="flex items-center justify-between mb-6">
@@ -358,6 +407,7 @@ export default function SalesPage() {
                     <DealRow
                       key={deal.id}
                       deal={deal}
+                      stages={stages}
                       onEdit={handleEditDeal}
                       onDelete={handleDeleteDeal}
                       onView={handleViewDeal}

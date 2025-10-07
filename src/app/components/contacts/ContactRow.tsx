@@ -66,8 +66,8 @@ export const ContactRow: React.FC<ContactRowProps> = ({ contact, onEdit, onDelet
         </span>
       </td>
       <td className="px-4 py-3">
-        <span className={`text-sm font-medium ${getLeadScoreColor(contact.lead_score)}`}>
-          {contact.lead_score}
+        <span className={`text-sm font-medium ${getLeadScoreColor(contact.lead_score || 0)}`}>
+          {contact.lead_score || 0}
         </span>
       </td>
       <td className="px-4 py-3">

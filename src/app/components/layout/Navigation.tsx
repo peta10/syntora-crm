@@ -6,16 +6,19 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { RolePermissions } from '@/app/types/auth';
+import UpdateChecker from '@/app/components/updater/UpdateChecker';
 import {
   LayoutDashboard,
   CheckSquare,
   Trophy,
   BarChart2,
   Users,
+  Building2,
   Briefcase,
   Timer,
   Settings,
   DollarSign,
+  Wallet,
   Menu,
   X,
   LogOut,
@@ -41,7 +44,9 @@ const Navigation = () => {
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Reports', href: '/reports', icon: BarChart2, requiresPermission: 'canViewAnalytics' as keyof RolePermissions },
     { name: 'Contacts', href: '/contacts', icon: Users },
+    { name: 'Companies', href: '/companies', icon: Building2 },
     { name: 'Sales', href: '/sales', icon: DollarSign },
+    { name: 'Finance', href: '/finance', icon: Wallet },
     { name: 'Projects', href: '/projects', icon: Briefcase },
     { name: 'Focus', href: '/focus', icon: Timer },
     { name: 'Admin', href: '/admin', icon: Settings, requiresPermission: 'canAccessAdmin' as keyof RolePermissions },
@@ -143,6 +148,11 @@ const Navigation = () => {
               <User className="w-5 h-5" />
               <span className="font-medium">Profile Settings</span>
             </Link>
+            
+            {/* Update Checker */}
+            <div className="px-4 py-2">
+              <UpdateChecker />
+            </div>
             
             <button
               onClick={() => signOut()}

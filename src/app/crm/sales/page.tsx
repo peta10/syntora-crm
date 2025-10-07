@@ -24,19 +24,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CrmDeal, PipelineStage, CreateDealRequest } from '@/app/types/crm';
+import { DealsAPI } from '@/app/lib/api/crm-deals';
 
-// Mock pipeline stages
-const mockStages: PipelineStage[] = [
-  { id: '1', stage_name: 'Lead', stage_order: 1, probability: 10, color_hex: '#ef4444', is_active: true, created_at: '', updated_at: '' },
-  { id: '2', stage_name: 'Qualified', stage_order: 2, probability: 25, color_hex: '#f97316', is_active: true, created_at: '', updated_at: '' },
-  { id: '3', stage_name: 'Proposal', stage_order: 3, probability: 50, color_hex: '#eab308', is_active: true, created_at: '', updated_at: '' },
+// Default pipeline stages (will be loaded from database in future)
+const defaultStages: PipelineStage[] = [
+  { id: '1', stage_name: 'Lead', stage_order: 1, probability: 10, color_hex: '#6E86FF', is_active: true, created_at: '', updated_at: '' },
+  { id: '2', stage_name: 'Qualified', stage_order: 2, probability: 25, color_hex: '#FF6BBA', is_active: true, created_at: '', updated_at: '' },
+  { id: '3', stage_name: 'Proposal', stage_order: 3, probability: 50, color_hex: '#B279DB', is_active: true, created_at: '', updated_at: '' },
   { id: '4', stage_name: 'Negotiation', stage_order: 4, probability: 75, color_hex: '#22c55e', is_active: true, created_at: '', updated_at: '' },
   { id: '5', stage_name: 'Closed Won', stage_order: 5, probability: 100, color_hex: '#10b981', is_active: true, created_at: '', updated_at: '' },
   { id: '6', stage_name: 'Closed Lost', stage_order: 6, probability: 0, color_hex: '#6b7280', is_active: true, created_at: '', updated_at: '' }
 ];
 
-// Mock deals data
-const mockDeals: CrmDeal[] = [
+// Removed mock deals - all data now loaded from Supabase
+const _oldMockDeals: CrmDeal[] = [
   {
     id: '1',
     deal_name: 'Website Redesign - Tech Corp',
@@ -388,11 +389,40 @@ const DealRow: React.FC<DealRowProps> = ({ deal, onEdit, onDelete, onView, onMov
 };
 
 export default function DealsPage() {
-  const [deals, setDeals] = useState<CrmDeal[]>(mockDeals);
-  const [stages] = useState<PipelineStage[]>(mockStages);
+  const [deals, setDeals] = useState<CrmDeal[]>([]);
+  const [stages, setStages] = useState<PipelineStage[]>(defaultStages);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStage, setSelectedStage] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list'); // Changed default to list
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedDeal, setSelectedDeal] = useState<CrmDeal | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isNewDealOpen, setIsNewDealOpen] = useState(false);
+
+  // Load deals from Supabase on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Use default stages (pipeline_stages table doesn't exist yet)
+      setStages(defaultStages);
+      
+      // Load deals
+      const response = await DealsAPI.getAll({ limit: 1000 });
+      setDeals(response.data);
+    } catch (err) {
+      console.error('Error loading deals:', err);
+      setError('Failed to load deals. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // Group deals by stage
   const dealsByStage = stages.reduce((acc, stage) => {
@@ -406,29 +436,38 @@ export default function DealsPage() {
     deal.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDealMove = (dealId: string, newStage: string) => {
-    setDeals(prev => prev.map(deal => 
-      deal.id === dealId 
-        ? { 
-            ...deal, 
-            stage: newStage,
-            probability: stages.find(s => s.stage_name === newStage)?.probability || deal.probability,
-            updated_at: new Date().toISOString()
-          }
-        : deal
-    ));
-  };
+  async function handleDealMove(dealId: string, newStage: string) {
+    try {
+      await DealsAPI.updateStage(dealId, newStage);
+      await loadData(); // Reload from database
+    } catch (err) {
+      console.error('Error moving deal:', err);
+      setError('Failed to update deal stage.');
+    }
+  }
 
   const handleEditDeal = (deal: CrmDeal) => {
-    console.log('Edit deal:', deal);
+    setSelectedDeal(deal);
+    setIsNewDealOpen(true); // Reuse the form dialog for editing
   };
 
-  const handleDeleteDeal = (id: string) => {
-    setDeals(prev => prev.filter(d => d.id !== id));
-  };
+  async function handleDeleteDeal(id: string) {
+    if (!confirm('Are you sure you want to delete this deal?')) {
+      return;
+    }
+    
+    try {
+      await DealsAPI.delete(id);
+      await loadData(); // Reload from database
+    } catch (err) {
+      console.error('Error deleting deal:', err);
+      setError('Failed to delete deal.');
+    }
+  }
 
   const handleViewDeal = (deal: CrmDeal) => {
-    console.log('View deal:', deal);
+    setSelectedDeal(deal);
+    setIsDetailsOpen(true);
   };
 
   // Calculate pipeline metrics
@@ -449,7 +488,7 @@ export default function DealsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">

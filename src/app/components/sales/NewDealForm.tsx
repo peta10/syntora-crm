@@ -12,8 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { CrmContact } from '@/app/types/crm';
-import { PipelineStage, CreateDealRequest } from '@/app/types/sales';
+import { CrmContact, CreateDealRequest } from '@/app/types/crm';
+import { PipelineStage } from '@/app/types/sales';
 
 interface NewDealFormProps {
   isOpen: boolean;
@@ -25,12 +25,12 @@ interface NewDealFormProps {
 export function NewDealForm({ isOpen, onClose, onSubmit, stages }: NewDealFormProps) {
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [formData, setFormData] = useState<Partial<CreateDealRequest>>({
-    title: '',
+    deal_name: '',
     contact_id: '',
     value: 0,
     stage: stages[0]?.stage_name || '',
     probability: stages[0]?.probability || 0,
-    close_date: '',
+    expected_close_date: '',
     description: '',
     tags: []
   });
@@ -54,7 +54,7 @@ export function NewDealForm({ isOpen, onClose, onSubmit, stages }: NewDealFormPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.contact_id || !formData.value || !formData.stage || !formData.close_date) {
+    if (!formData.deal_name || !formData.contact_id || !formData.stage) {
       return; // Form validation failed
     }
     onSubmit(formData as CreateDealRequest);
@@ -96,11 +96,11 @@ export function NewDealForm({ isOpen, onClose, onSubmit, stages }: NewDealFormPr
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="title">Deal Name</Label>
+            <Label htmlFor="deal_name">Deal Name</Label>
             <Input
-              id="title"
-              name="title"
-              value={formData.title}
+              id="deal_name"
+              name="deal_name"
+              value={formData.deal_name}
               onChange={handleChange}
               className="bg-gray-800 border-gray-700 text-white"
               required
@@ -160,15 +160,14 @@ export function NewDealForm({ isOpen, onClose, onSubmit, stages }: NewDealFormPr
           </div>
 
           <div>
-            <Label htmlFor="close_date">Expected Close Date</Label>
+            <Label htmlFor="expected_close_date">Expected Close Date</Label>
             <Input
-              id="close_date"
-              name="close_date"
+              id="expected_close_date"
+              name="expected_close_date"
               type="date"
-              value={formData.close_date}
+              value={formData.expected_close_date}
               onChange={handleChange}
               className="bg-gray-800 border-gray-700 text-white"
-              required
             />
           </div>
 

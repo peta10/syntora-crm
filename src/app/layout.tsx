@@ -9,6 +9,7 @@ import { AuthProvider } from '@/app/contexts/AuthContext';
 import { AuthGuard } from '@/app/components/auth/AuthGuard';
 import { NavigationWrapper } from '@/app/components/layout/NavigationWrapper';
 import { getDesktopManager } from '@/app/utils/desktop';
+import TaskCompletionListener from '@/app/components/gaming/TaskCompletionListener';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -51,6 +52,7 @@ export default function RootLayout({
           <AuthProvider>
             <AuthGuard>
               <GamingProvider>
+                <TaskCompletionListener />
                 <NavigationWrapper>
                   {children}
                 </NavigationWrapper>

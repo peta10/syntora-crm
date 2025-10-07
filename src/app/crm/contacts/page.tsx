@@ -30,9 +30,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CrmContact, ContactFilters, CreateContactRequest } from '@/app/types/crm';
 import { ContactDetails } from '@/app/components/crm/ContactDetails';
+import { ContactsAPI } from '@/app/lib/api/crm-contacts';
 
-// Mock data for demonstration
-const mockContacts: CrmContact[] = [
+// Removed mock data - all contacts now loaded from Supabase
+const _oldMockContacts: CrmContact[] = [
   {
     id: '1',
     first_name: 'John',
@@ -43,8 +44,10 @@ const mockContacts: CrmContact[] = [
     job_title: 'CEO',
     contact_type: 'prospect',
     contact_source: 'website',
-    city: 'New York',
-    state: 'NY',
+    address: {
+      city: 'New York',
+      state: 'NY'
+    },
     tags: ['enterprise', 'hot-lead'],
     lead_score: 85,
     last_contact_date: '2024-01-15T10:30:00Z',
@@ -61,8 +64,10 @@ const mockContacts: CrmContact[] = [
     job_title: 'Marketing Director',
     contact_type: 'client',
     contact_source: 'referral',
-    city: 'Los Angeles',
-    state: 'CA',
+    address: {
+      city: 'Los Angeles',
+      state: 'CA'
+    },
     tags: ['client', 'recurring'],
     lead_score: 95,
     last_contact_date: '2024-01-14T14:15:00Z',
@@ -79,8 +84,10 @@ const mockContacts: CrmContact[] = [
     job_title: 'Creative Director',
     contact_type: 'prospect',
     contact_source: 'linkedin',
-    city: 'Austin',
-    state: 'TX',
+    address: {
+      city: 'Austin',
+      state: 'TX'
+    },
     tags: ['creative', 'medium-lead'],
     lead_score: 60,
     last_contact_date: '2024-01-10T09:00:00Z',
@@ -206,11 +213,11 @@ const ContactForm: React.FC<ContactFormProps> = ({ contact, onSave, onCancel }) 
     job_title: contact?.job_title || '',
     contact_type: contact?.contact_type || 'unknown',
     contact_source: contact?.contact_source || '',
-    address_line_1: contact?.address_line_1 || '',
-    city: contact?.city || '',
-    state: contact?.state || '',
-    postal_code: contact?.postal_code || '',
-    country: contact?.country || '',
+    address_line_1: contact?.address?.address_line_1 || '',
+    city: contact?.address?.city || '',
+    state: contact?.address?.state || '',
+    postal_code: contact?.address?.postal_code || '',
+    country: contact?.address?.country || '',
     website: contact?.website || '',
     linkedin_url: contact?.linkedin_url || '',
     notes: contact?.notes || '',
@@ -442,13 +449,36 @@ const ContactForm: React.FC<ContactFormProps> = ({ contact, onSave, onCancel }) 
 };
 
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<CrmContact[]>(mockContacts);
-  const [filteredContacts, setFilteredContacts] = useState<CrmContact[]>(mockContacts);
+  const [contacts, setContacts] = useState<CrmContact[]>([]);
+  const [filteredContacts, setFilteredContacts] = useState<CrmContact[]>([]);
   const [filters, setFilters] = useState<ContactFilters>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editingContact, setEditingContact] = useState<CrmContact | null>(null);
   const [selectedContact, setSelectedContact] = useState<CrmContact | null>(null);
+
+  // Load contacts from Supabase on mount
+  useEffect(() => {
+    loadContacts();
+  }, []);
+
+  async function loadContacts() {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await ContactsAPI.getAll({ limit: 1000 });
+      const mappedContacts: CrmContact[] = response.data;
+      setContacts(mappedContacts);
+      setFilteredContacts(mappedContacts);
+    } catch (err) {
+      console.error('Error loading contacts:', err);
+      setError('Failed to load contacts. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // Filter and search logic
   useEffect(() => {
@@ -472,42 +502,51 @@ export default function ContactsPage() {
     setFilteredContacts(filtered);
   }, [contacts, searchQuery, filters]);
 
-  const handleCreateContact = (contactData: CreateContactRequest) => {
-    const newContact: CrmContact = {
-      ...contactData,
-      contact_type: contactData.contact_type || 'unknown',
-      id: Date.now().toString(),
-      lead_score: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setContacts(prev => [newContact, ...prev]);
-    setShowForm(false);
-  };
-
-  const handleEditContact = (contactData: CreateContactRequest) => {
-    if (editingContact) {
-      const updatedContact: CrmContact = {
-        ...editingContact,
-        ...contactData,
-        updated_at: new Date().toISOString()
-      };
-      setContacts(prev => prev.map(c => c.id === editingContact.id ? updatedContact : c));
-      setEditingContact(null);
+  async function handleCreateContact(contactData: CreateContactRequest) {
+    try {
+      await ContactsAPI.create(contactData);
+      await loadContacts(); // Reload from database
       setShowForm(false);
+    } catch (err) {
+      console.error('Error creating contact:', err);
+      setError('Failed to create contact.');
     }
-  };
+  }
 
-  const handleDeleteContact = (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
-  };
+  async function handleEditContact(contactData: CreateContactRequest) {
+    if (editingContact) {
+      try {
+        await ContactsAPI.update(editingContact.id, contactData);
+        await loadContacts(); // Reload from database
+        setEditingContact(null);
+        setShowForm(false);
+      } catch (err) {
+        console.error('Error updating contact:', err);
+        setError('Failed to update contact.');
+      }
+    }
+  }
+
+  async function handleDeleteContact(id: string) {
+    if (!confirm('Are you sure you want to delete this contact?')) {
+      return;
+    }
+    
+    try {
+      await ContactsAPI.delete(id);
+      await loadContacts(); // Reload from database
+    } catch (err) {
+      console.error('Error deleting contact:', err);
+      setError('Failed to delete contact.');
+    }
+  }
 
   const handleViewContact = (contact: CrmContact) => {
     setSelectedContact(contact);
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">

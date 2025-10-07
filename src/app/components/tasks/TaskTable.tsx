@@ -212,7 +212,18 @@ export const TaskTable: React.FC<TaskTableProps> = ({ filter, searchQuery }) => 
   };
 
   const handleForceSync = async () => {
-    await OfflineTaskManager.forceSyncNow();
+    try {
+      await OfflineTaskManager.forceSyncNow();
+    } catch (error) {
+      console.error('Sync failed:', error);
+      
+      // Show user-friendly error message
+      if (error instanceof Error && error.message.includes('refresh')) {
+        alert('Session expired. Please refresh the page and sign in again.');
+      } else {
+        alert('Sync failed. Please check your internet connection and try again.');
+      }
+    }
   };
 
   const handleTimeTrackingToggle = async (taskId: string) => {

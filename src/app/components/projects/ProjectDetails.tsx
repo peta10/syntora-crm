@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Project } from '@/app/types/todo';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -170,6 +170,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[90vw] max-h-[90vh] overflow-hidden bg-[#0B0F1A] border-gray-700/50">
+        <DialogTitle className="sr-only">{project.title}</DialogTitle>
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-700/50">

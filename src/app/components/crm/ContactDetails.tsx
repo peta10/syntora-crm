@@ -181,19 +181,19 @@ export const ContactDetails: React.FC<ContactDetailsProps> = ({
           </div>
 
           {/* Address */}
-          {(contact.address_line_1 || contact.city || contact.state) && (
+          {(contact.address?.address_line_1 || contact.address?.city || contact.address?.state) && (
             <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
               <h3 className="text-lg font-semibold text-white mb-4">Address</h3>
               <div className="flex items-start space-x-3">
                 <MapPin className="w-5 h-5 text-red-400 mt-1" />
                 <div className="text-gray-300">
-                  {contact.address_line_1 && <div>{contact.address_line_1}</div>}
+                  {contact.address?.address_line_1 && <div>{contact.address.address_line_1}</div>}
                   <div>
-                    {[contact.city, contact.state, contact.postal_code]
+                    {[contact.address?.city, contact.address?.state, contact.address?.postal_code]
                       .filter(Boolean)
                       .join(', ')}
                   </div>
-                  {contact.country && <div>{contact.country}</div>}
+                  {contact.address?.country && <div>{contact.address.country}</div>}
                 </div>
               </div>
             </div>

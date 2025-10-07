@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -11,7 +13,8 @@ import {
   UserPlus,
   Target,
   Star,
-  CheckCircle2
+  CheckCircle,
+  List
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,72 +23,82 @@ import { Contact, ContactFilters, CreateContactRequest } from '@/app/types/conta
 import { ContactRow } from '@/app/components/contacts/ContactRow';
 import { ContactForm } from '@/app/components/contacts/ContactForm';
 import { ContactDetails } from '@/app/components/contacts/ContactDetails';
+import { ContactsAPI } from '@/app/lib/api/crm-contacts';
+import { CrmContact } from '@/app/types/crm';
 
-// Mock data for demonstration
-const mockContacts: Contact[] = [
-  {
-    id: '1',
-    first_name: 'John',
-    last_name: 'Smith',
-    email: 'john.smith@techcorp.com',
-    phone: '+1 (555) 123-4567',
-    company: 'Tech Corp',
-    job_title: 'CEO',
-    contact_type: 'prospect',
-    contact_source: 'website',
-    city: 'New York',
-    state: 'NY',
-    tags: ['enterprise', 'hot-lead'],
-    lead_score: 85,
-    notes: 'Met at TechConf 2024. Interested in enterprise solutions. Follow up in Q2.',
-    last_contact_date: '2024-01-15T10:30:00Z',
-    created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-15T10:30:00Z'
-  },
-  {
-    id: '2',
-    first_name: 'Sarah',
-    last_name: 'Johnson',
-    email: 'sarah.j@marketingplus.com',
-    phone: '+1 (555) 987-6543',
-    company: 'Marketing Plus',
-    job_title: 'Marketing Director',
-    contact_type: 'client',
-    contact_source: 'referral',
-    city: 'Los Angeles',
-    state: 'CA',
-    tags: ['client', 'recurring'],
-    lead_score: 95,
-    notes: 'Long-term client. Monthly retainer. Very satisfied with our services.',
-    last_contact_date: '2024-01-14T14:15:00Z',
-    created_at: '2023-12-15T00:00:00Z',
-    updated_at: '2024-01-14T14:15:00Z'
-  }
-];
-
-type TabType = 'overview' | 'leads' | 'clients';
+type TabType = 'all' | 'clients' | 'leads' | 'prospects';
 
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>(mockContacts);
-  const [filteredContacts, setFilteredContacts] = useState<Contact[]>(mockContacts);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ContactFilters>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [showContactDetails, setShowContactDetails] = useState(false);
+
+  // Load contacts from Supabase on mount
+  useEffect(() => {
+    loadContacts();
+  }, []);
+
+  const loadContacts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await ContactsAPI.getAll({ limit: 1000 }); // Get all contacts
+      
+      // Map CrmContact to Contact type - the API already handles field mapping
+      const mappedContacts: Contact[] = response.data.map((c: any) => ({
+        id: c.id,
+        first_name: c.first_name,
+        last_name: c.last_name,
+        email: c.email,
+        phone: c.phone,
+        company: c.company,
+        business_id: c.business_id,
+        job_title: c.job_title, // API maps title -> job_title
+        contact_type: c.contact_type,
+        contact_source: c.contact_source, // API maps lead_source -> contact_source
+        address: c.address,
+        website: c.website,
+        linkedin_url: c.linkedin_url,
+        tags: c.tags || [],
+        lead_score: c.lead_score || 0,
+        notes: c.notes,
+        last_contact_date: c.last_contact_date,
+        created_at: c.created_at,
+        updated_at: c.updated_at
+      }));
+      
+      setContacts(mappedContacts);
+    } catch (err) {
+      console.error('Error loading contacts:', err);
+      setError('Failed to load contacts. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter and search logic
   useEffect(() => {
     let filtered = contacts;
 
     // Apply tab filters
-    if (activeTab === 'leads') {
-      filtered = filtered.filter(contact => contact.contact_type === 'prospect');
-    } else if (activeTab === 'clients') {
+    if (activeTab === 'clients') {
       filtered = filtered.filter(contact => contact.contact_type === 'client');
+    } else if (activeTab === 'leads') {
+      filtered = filtered.filter(contact => 
+        contact.contact_type === 'prospect' && (contact.lead_score || 0) >= 70
+      );
+    } else if (activeTab === 'prospects') {
+      filtered = filtered.filter(contact => contact.contact_type === 'prospect');
     }
+    // 'all' tab shows all contacts - no filtering needed
 
     // Apply search
     if (searchQuery.trim()) {
@@ -105,34 +118,48 @@ export default function ContactsPage() {
     setFilteredContacts(filtered);
   }, [contacts, searchQuery, filters, activeTab]);
 
-  const handleCreateContact = (contactData: CreateContactRequest) => {
-    const newContact: Contact = {
-      ...contactData,
-      contact_type: contactData.contact_type || 'unknown',
-      id: Date.now().toString(),
-      lead_score: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setContacts(prev => [newContact, ...prev]);
-    setShowForm(false);
-  };
-
-  const handleEditContact = (contactData: CreateContactRequest) => {
-    if (editingContact) {
-      const updatedContact: Contact = {
-        ...editingContact,
-        ...contactData,
-        updated_at: new Date().toISOString()
-      };
-      setContacts(prev => prev.map(c => c.id === editingContact.id ? updatedContact : c));
-      setEditingContact(null);
+  const handleCreateContact = async (contactData: CreateContactRequest) => {
+    try {
+      setIsLoading(true);
+      await ContactsAPI.create(contactData);
+      await loadContacts(); // Reload all contacts
       setShowForm(false);
+    } catch (err) {
+      console.error('Error creating contact:', err);
+      setError('Failed to create contact. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteContact = (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
+  const handleEditContact = async (contactData: CreateContactRequest) => {
+    if (editingContact) {
+      try {
+        setIsLoading(true);
+        await ContactsAPI.update(editingContact.id, contactData);
+        await loadContacts(); // Reload all contacts
+        setEditingContact(null);
+        setShowForm(false);
+      } catch (err) {
+        console.error('Error updating contact:', err);
+        setError('Failed to update contact. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteContact = async (id: string) => {
+    try {
+      setIsLoading(true);
+      await ContactsAPI.delete(id);
+      await loadContacts(); // Reload all contacts
+    } catch (err) {
+      console.error('Error deleting contact:', err);
+      setError('Failed to delete contact. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleViewContact = (contact: Contact) => {
@@ -142,109 +169,108 @@ export default function ContactsPage() {
 
   const getTabStats = () => {
     const totalContacts = contacts.length;
-    const prospects = contacts.filter(c => c.contact_type === 'prospect').length;
     const clients = contacts.filter(c => c.contact_type === 'client').length;
-    const avgScore = Math.round(contacts.reduce((sum, c) => sum + c.lead_score, 0) / totalContacts);
+    const leads = contacts.filter(c => c.contact_type === 'prospect' && (c.lead_score || 0) >= 70).length;
+    const prospects = contacts.filter(c => c.contact_type === 'prospect').length;
+    const avgScore = Math.round(contacts.reduce((sum, c) => sum + (c.lead_score || 0), 0) / totalContacts) || 0;
 
-    return { totalContacts, prospects, clients, avgScore };
+    return { totalContacts, clients, leads, prospects, avgScore };
   };
 
   const stats = getTabStats();
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white">
+      <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Contacts Dashboard
-            </h1>
-            <p className="text-gray-400">
-              Deep insights into your network and relationships
-            </p>
+        <div className="mb-8">
+          <div className="flex items-center space-x-4">
+            <Image
+              src="/FinalFavicon.webp"
+              alt="Syntora Logo"
+              width={48}
+              height={48}
+              className="rounded-xl"
+            />
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-2">
+                Contact Management
+              </h1>
+              <p className="text-gray-400">Manage all client relationships and prospects</p>
+            </div>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-gray-800/50 rounded-xl p-1 mb-8">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center space-x-2 px-4 py-3 rounded-lg transition-all ${
-              activeTab === 'overview'
-                ? 'bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Overview</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('leads')}
-            className={`flex items-center space-x-2 px-4 py-3 rounded-lg transition-all ${
-              activeTab === 'leads'
-                ? 'bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-            }`}
-          >
-            <Target className="w-4 h-4" />
-            <span>Leads</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('clients')}
-            className={`flex items-center space-x-2 px-4 py-3 rounded-lg transition-all ${
-              activeTab === 'clients'
-                ? 'bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-            }`}
-          >
-            <Star className="w-4 h-4" />
-            <span>Clients</span>
-          </button>
+        <div className="mb-8">
+          <div className="flex space-x-1 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-1">
+            {[
+              { id: 'all' as const, label: 'All Contacts', icon: List, color: '#10B981' },
+              { id: 'clients' as const, label: 'Clients', icon: CheckCircle, color: '#6E86FF' },
+              { id: 'leads' as const, label: 'Leads', icon: Target, color: '#FF6BBA' },
+              { id: 'prospects' as const, label: 'Prospects', icon: Users, color: '#B279DB' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-3 px-6 py-3 rounded-lg transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
+              >
+                <tab.icon className="w-5 h-5" style={{ color: activeTab === tab.id ? '#fff' : tab.color }} />
+                <span className="font-medium">{tab.label}</span>
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 rounded-lg border-2 border-white/20"
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-xl p-4 border border-blue-500/30">
-            <div className="flex items-center space-x-3">
-              <Users className="w-8 h-8 text-blue-400" />
+          <div className="bg-gradient-to-br from-[#6E86FF]/20 to-[#6E86FF]/10 border border-[#6E86FF]/30 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <Users className="w-8 h-8 text-[#6E86FF]" />
               <div>
                 <div className="text-2xl font-bold text-white">{stats.totalContacts}</div>
-                <div className="text-sm text-blue-300">Total Contacts</div>
-                <div className="text-xs text-gray-400">All contacts</div>
+                <div className="text-sm text-[#6E86FF]">Total Contacts</div>
               </div>
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl p-4 border border-green-500/30">
-            <div className="flex items-center space-x-3">
-              <Target className="w-8 h-8 text-green-400" />
-              <div>
-                <div className="text-2xl font-bold text-white">{stats.prospects}</div>
-                <div className="text-sm text-green-300">Prospects</div>
-                <div className="text-xs text-gray-400">Potential clients</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl p-4 border border-purple-500/30">
-            <div className="flex items-center space-x-3">
-              <CheckCircle2 className="w-8 h-8 text-purple-400" />
+          <div className="bg-gradient-to-br from-[#6E86FF]/20 to-[#6E86FF]/10 border border-[#6E86FF]/30 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-8 h-8 text-[#6E86FF]" />
               <div>
                 <div className="text-2xl font-bold text-white">{stats.clients}</div>
-                <div className="text-sm text-purple-300">Active Clients</div>
-                <div className="text-xs text-gray-400">Current clients</div>
+                <div className="text-sm text-[#6E86FF]">Active Clients</div>
               </div>
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/20 rounded-xl p-4 border border-orange-500/30">
-            <div className="flex items-center space-x-3">
-              <Star className="w-8 h-8 text-orange-400" />
+          <div className="bg-gradient-to-br from-[#FF6BBA]/20 to-[#FF6BBA]/10 border border-[#FF6BBA]/30 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <Target className="w-8 h-8 text-[#FF6BBA]" />
+              <div>
+                <div className="text-2xl font-bold text-white">{stats.leads}</div>
+                <div className="text-sm text-[#FF6BBA]">Hot Leads</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-[#B279DB]/20 to-[#B279DB]/10 border border-[#B279DB]/30 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <Star className="w-8 h-8 text-[#B279DB]" />
               <div>
                 <div className="text-2xl font-bold text-white">{stats.avgScore}</div>
-                <div className="text-sm text-orange-300">Avg Lead Score</div>
-                <div className="text-xs text-gray-400">Overall quality</div>
+                <div className="text-sm text-[#B279DB]">Avg Lead Score</div>
               </div>
             </div>
           </div>
@@ -317,77 +343,103 @@ export default function ContactsPage() {
           </Button>
         </div>
 
-        {/* Contacts Table */}
-        <div className="bg-gray-900/50 rounded-xl border border-gray-700/50">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700/50">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Company
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Phone
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Score
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Tag
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700/50">
-                {filteredContacts.map((contact) => (
-                  <ContactRow
-                    key={contact.id}
-                    contact={contact}
-                    onEdit={(contact: Contact) => {
-                      setEditingContact(contact);
-                      setShowForm(true);
-                    }}
-                    onDelete={handleDeleteContact}
-                    onView={handleViewContact}
-                  />
-                ))}
-              </tbody>
-            </table>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+            <button 
+              onClick={() => { setError(null); loadContacts(); }}
+              className="mt-2 text-sm text-red-300 hover:text-red-100 underline"
+            >
+              Try again
+            </button>
           </div>
-        </div>
+        )}
 
-        {filteredContacts.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 bg-gradient-to-br from-[#6E86FF]/20 to-[#FF6BBA]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-12 h-12 text-gray-400" />
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-12">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6E86FF]"></div>
+              <p className="text-gray-400">Loading contacts...</p>
             </div>
-            <h3 className="text-lg font-medium text-white mb-2">No contacts found</h3>
-            <p className="text-gray-400 mb-4">
-              {searchQuery || filters.contact_type 
-                ? 'Try adjusting your search or filters'
-                : 'Get started by adding your first contact'
-              }
-            </p>
-            {!searchQuery && !filters.contact_type && (
-              <Button 
-                onClick={() => setShowForm(true)}
-                className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA]"
-              >
-                Add Your First Contact
-              </Button>
-            )}
           </div>
+        ) : (
+          <>
+            {/* Contacts Table */}
+            <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-700/50">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Contact
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Company
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Phone
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Score
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Tag
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700/50">
+                    {filteredContacts.map((contact) => (
+                      <ContactRow
+                        key={contact.id}
+                        contact={contact}
+                        onEdit={(contact: Contact) => {
+                          setEditingContact(contact);
+                          setShowForm(true);
+                        }}
+                        onDelete={handleDeleteContact}
+                        onView={handleViewContact}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Empty State */}
+            {filteredContacts.length === 0 && !isLoading && (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 bg-gradient-to-br from-[#6E86FF]/20 to-[#FF6BBA]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-12 h-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">No contacts found</h3>
+                <p className="text-gray-400 mb-4">
+                  {searchQuery || filters.contact_type 
+                    ? 'Try adjusting your search or filters'
+                    : 'Get started by adding your first contact'
+                  }
+                </p>
+                {!searchQuery && !filters.contact_type && (
+                  <Button 
+                    onClick={() => setShowForm(true)}
+                    className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA]"
+                  >
+                    Add Your First Contact
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Contact Details Dialog */}

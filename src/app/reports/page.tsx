@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart3, Trophy, FileText, TrendingUp } from 'lucide-react';
 import AnalyticsDashboard from '@/app/components/analytics/AnalyticsDashboard';
@@ -115,7 +116,7 @@ export default function ReportsPage() {
         return <AnalyticsDashboard className="p-0" />;
       case 'achievements':
         return (
-          <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
+          <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm">
             <AchievementBoard
               userAchievements={userAchievements}
               onAchievementHover={handleAchievementHover}
@@ -132,16 +133,20 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto">
         {/* Header with Tab Navigation */}
         <div className="sticky top-0 z-30 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50">
           <div className="px-6 py-4">
             {/* Page Title */}
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
+              <Image
+                src="/FinalFavicon.webp"
+                alt="Syntora Logo"
+                width={48}
+                height={48}
+                className="rounded-xl"
+              />
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                   Reports & Analytics

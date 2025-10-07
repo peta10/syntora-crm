@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   Users, Plus, UserPlus, Mail, Phone, Building,
   Briefcase, Star, Target, MessageSquare, Clock,
@@ -410,11 +410,10 @@ export const ProjectStakeholders: React.FC<ProjectStakeholdersProps> = ({
           resetForm();
         }}>
           <DialogContent className="bg-[#0B0F1A] border-gray-700/50">
+            <DialogTitle className="text-lg font-semibold text-white mb-4">
+              {editingStakeholder ? 'Edit Stakeholder' : 'Add Stakeholder'}
+            </DialogTitle>
             <div className="space-y-6">
-              <div>
-          <h3 className="text-lg font-semibold text-white mb-4">
-            {editingStakeholder ? 'Edit Stakeholder' : 'Add Stakeholder'}
-          </h3>
           
           <div className="space-y-4">
                   {!editingStakeholder && (
@@ -569,11 +568,10 @@ export const ProjectStakeholders: React.FC<ProjectStakeholdersProps> = ({
               {editingStakeholder ? 'Update Stakeholder' : 'Add Stakeholder'}
             </Button>
           </div>
-              </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )}
     </div>
   );
 }; 

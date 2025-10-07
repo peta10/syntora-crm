@@ -75,7 +75,7 @@ export default function ProjectsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white">
       <div className="container mx-auto px-4">
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">

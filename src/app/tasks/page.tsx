@@ -55,7 +55,7 @@ export default function TasksPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#6E86FF]/30 border-t-[#6E86FF] rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-400">Loading your tasks...</p>
@@ -65,18 +65,18 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Image
-              src="/FinalFavicon.webp"
-              alt="Syntora Logo"
-              width={48}
-              height={48}
-              className="rounded-xl"
-            />
+              <Image
+                src="/FinalFavicon.webp"
+                alt="Syntora Logo"
+                width={48}
+                height={48}
+                className="rounded-xl"
+              />
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 Task Management
@@ -90,7 +90,7 @@ export default function TasksPage() {
           </div>
           
           <div className="flex items-center space-x-6">
-            <GamingStats />
+          <GamingStats />
             
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -117,37 +117,37 @@ export default function TasksPage() {
 
         {/* Filters and Search */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex space-x-1 bg-gray-800/50 rounded-lg p-1">
-            {['All', 'Today', 'Active', 'Completed', 'Personal', 'Work', 'Spiritual'].map((filterOption) => (
-              <button
-                key={filterOption}
-                onClick={() => setFilter(filterOption)}
-                className={`px-4 py-2 rounded-md font-medium transition-all ${
-                  filter === filterOption
-                    ? 'bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                }`}
-              >
-                {filterOption}
-              </button>
-            ))}
-          </div>
-          
-          <div className="flex items-center space-x-2">
+                <div className="flex space-x-1 bg-gray-800/50 rounded-lg p-1">
+                  {['All', 'Today', 'Active', 'Completed', 'Personal', 'Work', 'Spiritual'].map((filterOption) => (
+                    <button
+                      key={filterOption}
+                      onClick={() => setFilter(filterOption)}
+                      className={`px-4 py-2 rounded-md font-medium transition-all ${
+                        filter === filterOption
+                          ? 'bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                      }`}
+                    >
+                      {filterOption}
+                                  </button>
+                                ))}
+                              </div>
+                              
+                              <div className="flex items-center space-x-2">
             <Search className="w-5 h-5 text-gray-400" />
-            <input
-              type="text"
+                <input
+                  type="text"
               placeholder="Search tasks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-gray-800/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:border-[#6E86FF] focus:ring-1 focus:ring-[#6E86FF] transition-all outline-none w-64"
-            />
-          </div>
-        </div>
+                  />
+                </div>
+              </div>
 
         {/* Task Table */}
         <TaskTable filter={filter} searchQuery={searchQuery} />
-      </div>
+              </div>
 
       {/* Add Task Modal */}
       <AddTaskModal

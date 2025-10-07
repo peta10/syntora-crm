@@ -151,7 +151,7 @@ export default function CrmDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-spiritual-500/30 border-t-spiritual-500 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-400">Loading dashboard...</p>
@@ -161,7 +161,7 @@ export default function CrmDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gray-900/95 backdrop-blur-sm text-white">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

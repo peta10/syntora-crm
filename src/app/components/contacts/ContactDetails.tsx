@@ -65,10 +65,10 @@ export const ContactDetails: React.FC<ContactDetailsProps> = ({ contact, isOpen,
                 </a>
               </div>
 
-              {(contact.city || contact.state) && (
+              {(contact.address?.city || contact.address?.state) && (
                 <div className="flex items-center space-x-3 text-gray-300">
                   <MapPin className="w-5 h-5 text-[#6E86FF]" />
-                  <div>{[contact.city, contact.state].filter(Boolean).join(', ')}</div>
+                  <div>{[contact.address?.city, contact.address?.state].filter(Boolean).join(', ')}</div>
                 </div>
               )}
 

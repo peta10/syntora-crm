@@ -15,48 +15,28 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardMetrics } from '@/app/types/crm';
+import { DashboardAPI } from '@/app/lib/api/dashboard';
 
-// Mock data for demonstration
-const mockDashboardData: DashboardMetrics = {
-  monthlyRevenue: 125000,
-  monthlyRevenueChange: 12.3,
-  activeDeals: 24,
-  activeDealsChange: 5,
-  newContacts: 18,
-  newContactsChange: 8,
-  completedTasks: 142,
-  totalTasks: 168,
-  taskCompletionRate: 84.5,
-  revenueHistory: [
-    { month: 'Jan', revenue: 95000 },
-    { month: 'Feb', revenue: 110000 },
-    { month: 'Mar', revenue: 125000 },
-    { month: 'Apr', revenue: 140000 },
-    { month: 'May', revenue: 135000 },
-    { month: 'Jun', revenue: 150000 },
-  ],
-  pipelineData: [
-    { stage: 'Lead', count: 12, value: 25000 },
-    { stage: 'Qualified', count: 8, value: 45000 },
-    { stage: 'Proposal', count: 5, value: 125000 },
-    { stage: 'Negotiation', count: 3, value: 85000 },
-  ],
+// Empty initial state - will be loaded from Supabase
+const emptyDashboardData: DashboardMetrics = {
+  monthlyRevenue: 0,
+  monthlyRevenueChange: 0,
+  activeDeals: 0,
+  activeDealsChange: 0,
+  newContacts: 0,
+  newContactsChange: 0,
+  completedTasks: 0,
+  totalTasks: 0,
+  taskCompletionRate: 0,
+  revenueHistory: [],
+  pipelineData: [],
   recentActivities: [],
   upcomingTasks: [],
   contactInsights: {
-    totalContacts: 1248,
-    newThisMonth: 18,
-    byType: [
-      { type: 'prospect', count: 456 },
-      { type: 'client', count: 234 },
-      { type: 'friend', count: 345 },
-      { type: 'unknown', count: 213 },
-    ],
-    topCompanies: [
-      { company: 'Tech Corp', count: 23 },
-      { company: 'Marketing Plus', count: 18 },
-      { company: 'Design Studio', count: 15 },
-    ]
+    totalContacts: 0,
+    newThisMonth: 0,
+    byType: [],
+    topCompanies: []
   }
 };
 
@@ -128,33 +108,57 @@ const RecentActivityItem: React.FC<RecentActivityItemProps> = ({ type, title, su
 };
 
 export default function Dashboard() {
-  const [metrics, setMetrics] = useState<DashboardMetrics>(mockDashboardData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [metrics, setMetrics] = useState<DashboardMetrics>(emptyDashboardData);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // In a real app, you'd fetch this data from your API
+  // Load dashboard metrics from Supabase
   useEffect(() => {
-    // fetchDashboardMetrics();
+    loadDashboardData();
   }, []);
 
-  const recentActivities = [
-    { type: 'call' as const, title: 'Call with John Smith', subtitle: 'Tech Corp - Follow up on proposal', time: '2 hours ago' },
-    { type: 'email' as const, title: 'Email sent to Sarah Johnson', subtitle: 'Marketing Plus - Project update', time: '4 hours ago' },
-    { type: 'meeting' as const, title: 'Meeting scheduled', subtitle: 'Design Studio - Initial consultation', time: '6 hours ago' },
-    { type: 'deal' as const, title: 'Deal moved to Negotiation', subtitle: '$45,000 - Website Redesign', time: '1 day ago' },
-  ];
+  async function loadDashboardData() {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await DashboardAPI.getDashboardMetrics();
+      setMetrics(data);
+    } catch (err) {
+      console.error('Error loading dashboard:', err);
+      setError('Failed to load dashboard data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
-  const upcomingTasks = [
-    { title: 'Follow up with Tech Corp', due: 'Today, 2:00 PM', priority: 'high' as const },
-    { title: 'Send proposal to Marketing Plus', due: 'Tomorrow, 10:00 AM', priority: 'medium' as const },
-    { title: 'Schedule demo for Design Studio', due: 'Friday, 3:00 PM', priority: 'low' as const },
-  ];
+  // Use data from metrics or show empty state
+  const recentActivities = metrics.recentActivities || [];
+  const upcomingTasks = metrics.upcomingTasks || [];
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white flex items-center justify-center">
         <div className="text-center bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8">
           <div className="w-16 h-16 border-4 border-[#6E86FF]/30 border-t-[#6E86FF] rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading dashboard...</p>
+          <p className="text-gray-400">Loading dashboard data from Supabase...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-gray-900/50 backdrop-blur-sm border border-red-500/50 rounded-2xl p-8 text-center">
+          <div className="text-red-400 text-5xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-white mb-2">Failed to Load Dashboard</h2>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <button
+            onClick={loadDashboardData}
+            className="bg-gradient-to-r from-[#6E86FF] to-[#FF6BBA] text-white px-6 py-3 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -290,15 +294,23 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                {recentActivities.map((activity, index) => (
-                  <RecentActivityItem
-                    key={index}
-                    type={activity.type}
-                    title={activity.title}
-                    subtitle={activity.subtitle}
-                    time={activity.time}
-                  />
-                ))}
+                {recentActivities.length > 0 ? (
+                  recentActivities.map((activity, index) => (
+                    <RecentActivityItem
+                      key={index} 
+                      type={activity.activity_type as "call" | "email" | "meeting" | "deal"} // Cast to allowed types
+                      title={activity.subject || ''} // Provide default empty string
+                      subtitle={activity.description || ''} // Provide default empty string
+                      time={activity.created_at}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm">No recent activities</p>
+                    <p className="text-gray-500 text-xs mt-1">Activities will appear here as you interact with contacts</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -313,22 +325,32 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {upcomingTasks.map((task, index) => (
-                  <div key={index} className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/30 hover:bg-gray-800/50 hover:border-gray-600/50 transition-all">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-white">{task.title}</span>
-                      <div className={`w-2 h-2 rounded-full ${
-                        task.priority === 'high' ? 'bg-red-500' :
-                        task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                      }`} />
+                {upcomingTasks.length > 0 ? (
+                  upcomingTasks.map((task, index) => (
+                    <div key={index} className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/30 hover:bg-gray-800/50 hover:border-gray-600/50 transition-all">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-white">{task.subject}</span>
+                        <div className={`w-2 h-2 rounded-full ${
+                          task.priority === 'high' ? 'bg-red-500' :
+                          task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`} />
+                      </div>
+                      <p className="text-xs text-gray-400">{task.activity_date}</p>
                     </div>
-                    <p className="text-xs text-gray-400">{task.due}</p>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Target className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm">No upcoming tasks</p>
+                    <p className="text-gray-500 text-xs mt-1">Create tasks in the Tasks page</p>
                   </div>
-                ))}
+                )}
               </div>
-              <button className="w-full mt-4 text-sm text-[#6E86FF] hover:text-[#FF6BBA] transition-colors">
-                View all tasks →
-              </button>
+              {upcomingTasks.length > 0 && (
+                <button className="w-full mt-4 text-sm text-[#6E86FF] hover:text-[#FF6BBA] transition-colors">
+                  View all tasks →
+                </button>
+              )}
             </CardContent>
           </Card>
         </div>

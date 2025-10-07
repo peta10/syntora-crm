@@ -18,18 +18,7 @@ export class ContactsAPI {
     try {
       let query = supabase
         .from('crm_contacts')
-        .select(`
-          *,
-          deals:crm_deals(count),
-          activities:crm_activities(count),
-          invoices:crm_invoices(count),
-          lastActivity:crm_activities(
-            id,
-            subject,
-            activity_type,
-            activity_date
-          )
-        `, { count: 'exact' });
+        .select('*', { count: 'exact' });
 
       // Apply filters
       if (filters.search) {
@@ -68,14 +57,29 @@ export class ContactsAPI {
 
       if (error) throw error;
 
-      // Transform data to include computed fields
+      // Transform data to include computed fields and flatten address, map field names
       const transformedData = (data || []).map((contact: any) => ({
         ...contact,
-        totalDeals: contact.deals?.[0]?.count || 0,
-        totalActivities: contact.activities?.[0]?.count || 0,
-        totalInvoices: contact.invoices?.[0]?.count || 0,
-        lastActivity: contact.lastActivity?.[0] || null,
-        totalRevenue: 0 // TODO: Implement proper revenue calculation
+        // Map database field names back to frontend format
+        job_title: contact.title,
+        contact_source: contact.lead_source,
+        // Flatten address for frontend compatibility
+        address_line_1: contact.address?.address_line_1,
+        city: contact.address?.city,
+        state: contact.address?.state,
+        postal_code: contact.address?.postal_code,
+        country: contact.address?.country,
+        // Flatten social profiles for frontend compatibility
+        website: contact.social_profiles?.website,
+        linkedin_url: contact.social_profiles?.linkedin_url,
+        twitter_url: contact.social_profiles?.twitter_url,
+        // Set default values for related data
+        totalDeals: 0,
+        totalActivities: 0,
+        totalInvoices: 0,
+        lastActivity: null,
+        totalRevenue: 0,
+        lead_score: 0 // Default lead score since column doesn't exist in DB
       })) as ContactWithRelations[];
 
       return {
@@ -99,29 +103,36 @@ export class ContactsAPI {
     try {
       const { data, error } = await supabase
         .from('crm_contacts')
-        .select(`
-          *,
-          deals:crm_deals(*),
-          activities:crm_activities(*),
-          invoices:crm_invoices(*)
-        `)
+        .select('*')
         .eq('id', id)
         .single();
 
       if (error) throw error;
       if (!data) throw new Error('Contact not found');
 
-      // Calculate aggregated data
-      const totalRevenue = data.deals?.reduce((sum: number, deal: CrmDeal) => sum + (deal.value || 0), 0) || 0;
-      const lastActivity = data.activities?.sort((a: CrmActivity, b: CrmActivity) => 
-        new Date(b.activity_date).getTime() - new Date(a.activity_date).getTime()
-      )?.[0] || null;
+      // Set default values for aggregated data
+      const totalRevenue = 0;
+      const lastActivity = null;
 
       return {
         ...data,
-        totalDeals: data.deals?.length || 0,
+        // Map database field names back to frontend format
+        job_title: data.title,
+        contact_source: data.lead_source,
+        // Flatten address for frontend compatibility
+        address_line_1: data.address?.address_line_1,
+        city: data.address?.city,
+        state: data.address?.state,
+        postal_code: data.address?.postal_code,
+        country: data.address?.country,
+        // Flatten social profiles for frontend compatibility
+        website: data.social_profiles?.website,
+        linkedin_url: data.social_profiles?.linkedin_url,
+        twitter_url: data.social_profiles?.twitter_url,
+        totalDeals: 0,
         totalRevenue,
-        lastActivity
+        lastActivity,
+        lead_score: 0 // Default lead score since column doesn't exist in DB
       };
     } catch (error) {
       console.error('Error fetching contact:', error);
@@ -137,17 +148,70 @@ export class ContactsAPI {
       // Auto-categorize contact based on email domain or other factors
       const categorizedData = await this.autoCategorizeContact(contactData);
 
+      // Extract fields that need special handling
+      const { 
+        address_line_1, 
+        city, 
+        state, 
+        postal_code, 
+        country, 
+        job_title, 
+        contact_source,
+        website,
+        linkedin_url,
+        twitter_url,
+        ...restData 
+      } = categorizedData;
+      
+      // Only include fields that exist in the database schema
+      const transformedData: any = {
+        first_name: categorizedData.first_name,
+        last_name: categorizedData.last_name,
+        email: categorizedData.email || null,
+        phone: categorizedData.phone || null,
+        company: categorizedData.company || null,
+        title: job_title || null,
+        contact_type: categorizedData.contact_type || 'unknown',
+        lead_source: contact_source || null,
+        business_id: (contactData as any).business_id || null,
+        tags: categorizedData.tags || null,
+        notes: categorizedData.notes || null,
+      };
+      
+      // Only add address if at least one field has a value
+      if (address_line_1 || city || state || postal_code || country) {
+        transformedData.address = {
+          address_line_1: address_line_1 || null,
+          city: city || null,
+          state: state || null,
+          postal_code: postal_code || null,
+          country: country || null
+        };
+      }
+
+      // Only add social profiles if at least one field has a value
+      if (website || linkedin_url || twitter_url) {
+        transformedData.social_profiles = {
+          website: website || null,
+          linkedin_url: linkedin_url || null,
+          twitter_url: twitter_url || null
+        };
+      }
+
       const { data, error } = await supabase
         .from('crm_contacts')
-        .insert([categorizedData])
+        .insert([transformedData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error creating contact:', error);
+        throw error; // Throw actual error for debugging
+      }
       return data;
     } catch (error) {
       console.error('Error creating contact:', error);
-      throw new Error('Failed to create contact');
+      throw error; // Throw actual error for debugging
     }
   }
 
@@ -156,9 +220,66 @@ export class ContactsAPI {
    */
   static async update(id: string, updates: Partial<CreateContactRequest>): Promise<CrmContact> {
     try {
+      // Transform address fields to JSONB format for database if they exist and map field names
+      const { 
+        address_line_1, 
+        city, 
+        state, 
+        postal_code, 
+        country, 
+        job_title, 
+        contact_source,
+        website,
+        linkedin_url,
+        twitter_url,
+        ...restUpdates 
+      } = updates;
+      
+      // Only include fields that exist in the database schema
+      const transformedUpdates: any = {};
+      
+      // Map basic fields
+      if (updates.first_name !== undefined) transformedUpdates.first_name = updates.first_name;
+      if (updates.last_name !== undefined) transformedUpdates.last_name = updates.last_name;
+      if (updates.email !== undefined) transformedUpdates.email = updates.email || null;
+      if (updates.phone !== undefined) transformedUpdates.phone = updates.phone || null;
+      if (updates.company !== undefined) transformedUpdates.company = updates.company || null;
+      if (updates.contact_type !== undefined) transformedUpdates.contact_type = updates.contact_type || 'unknown';
+      if ((updates as any).business_id !== undefined) transformedUpdates.business_id = (updates as any).business_id || null;
+      if (updates.tags !== undefined) transformedUpdates.tags = updates.tags || null;
+      if (updates.notes !== undefined) transformedUpdates.notes = updates.notes || null;
+      
+      // Map field names for database
+      if (job_title !== undefined) {
+        transformedUpdates.title = job_title || null;
+      }
+      if (contact_source !== undefined) {
+        transformedUpdates.lead_source = contact_source || null;
+      }
+      
+      // Only add address if any address fields are provided
+      if (address_line_1 !== undefined || city !== undefined || state !== undefined || postal_code !== undefined || country !== undefined) {
+        transformedUpdates.address = {
+          address_line_1: address_line_1 || null,
+          city: city || null,
+          state: state || null,
+          postal_code: postal_code || null,
+          country: country || null
+        };
+      }
+
+      // Only add social profiles if any social fields are provided
+      if (website !== undefined || linkedin_url !== undefined || twitter_url !== undefined) {
+        transformedUpdates.social_profiles = {
+          website: website || null,
+          linkedin_url: linkedin_url || null,
+          twitter_url: twitter_url || null
+        };
+      }
+
       const { data, error } = await supabase
         .from('crm_contacts')
-        .update(updates)
+        .update(transformedUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -363,7 +484,7 @@ export class ContactsAPI {
   /**
    * Auto-categorize contact based on various factors
    */
-  private static async autoCategorizeContact(contactData: CreateContactRequest): Promise<CreateContactRequest & { lead_score: number }> {
+  private static async autoCategorizeContact(contactData: CreateContactRequest): Promise<CreateContactRequest> {
     let contactType = contactData.contact_type || 'unknown';
     let leadScore = 0;
 
@@ -408,8 +529,7 @@ export class ContactsAPI {
 
     return {
       ...contactData,
-      contact_type: contactType as 'friend' | 'unknown' | 'prospect' | 'client',
-      lead_score: leadScore
+      contact_type: contactType as 'friend' | 'unknown' | 'prospect' | 'client'
     };
   }
 
